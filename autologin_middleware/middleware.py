@@ -22,9 +22,17 @@ class AutologinMiddleware:
     or login failed).
 
     Required settings:
+
     AUTOLOGIN_ENABLED = True
     AUTOLOGIN_URL: url of where the autologin service is running
-    COOKIES_ENABLED = False (this could be relaxed perhaps)
+    ... and some cookie support
+
+    Supported cookie "engines":
+
+    - scrapy cookie middleware (COOKIES_ENABLED = True),
+    - scrapy_splash.SplashCookiesMiddleware
+    - any other middleware that gets cookies from request.cookies and
+      sets response.cookiejar
 
     Optional settings:
     AUTH_COOKIES: pass auth cookies after manual login (format is
@@ -162,17 +170,18 @@ class AutologinMiddleware:
     def process_response(self, request, response, spider):
         ''' If we were logged out, login again and retry request.
         '''
-        if self.is_logout(response):
+        if request.meta.get('_autologin') and self.is_logout(response):
             autologin_meta = request.meta['_autologin']
             retryreq = autologin_meta['request'].copy()
             retryreq.dont_filter = True
-            logger.debug('Logout at %s: %s', retryreq.url, response.cookiejar)
+            logger.debug(
+                'Logout at %s: %s', retryreq.url, _response_cookies(response))
             if self.logged_in:
                 # We could have already done relogin after initial logout
                 if any(autologin_meta['cookie_dict'].get(c['name']) !=
                         c['value'] for c in self.auth_cookies):
                     logger.debug('Request %s was stale, will retry %s',
-                                response, retryreq)
+                                 response, retryreq)
                     return retryreq
                 else:
                     self.logged_in = False
@@ -185,11 +194,22 @@ class AutologinMiddleware:
         return response
 
     def is_logout(self, response):
-        if self.auth_cookies and \
-                getattr(response, 'cookiejar', None) is not None:
+        if self.auth_cookies:
             auth_cookies = {c['name'] for c in self.auth_cookies if c['value']}
-            response_cookies = {m.name for m in response.cookiejar if m.value}
+            response_cookies = {
+                name for name, value in _response_cookies(response).items()
+                if value}
             return bool(auth_cookies - response_cookies)
+
+
+def _response_cookies(response):
+    ''' Return response cookies as a dict.
+    '''
+    if hasattr(response, 'cookiejar'):
+        cookies = response.cookiejar or []
+    else:
+        pass # TODO
+    return {m.name: m.value for m in cookies}
 
 
 def _cookies_to_har(cookies):

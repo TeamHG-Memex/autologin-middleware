@@ -5,13 +5,19 @@ This is a a Scrapy middleware that uses
 `autologin <https://github.com/TeamHG-Memex/autologin>`_ http-api
 to maintain a logged-in state for a scrapy spider.
 
-Include the middleware into the project settings, specify autologin url,
-and disable cookies::
+Include the middleware into the project settings and specify autologin url::
 
     AUTOLOGIN_URL = 'http://127.0.0.1:8089'
     AUTOLOGIN_ENABLED = True
     DOWNLOADER_MIDDLEWARES['autologin_middleware.AutologinMiddleware'] = 584
-    COOKIES_ENABLED = False
+    ... and some cookie support
+
+Supported cookie "engines":
+
+- scrapy cookie middleware (``COOKIES_ENABLED = True``),
+- scrapy-splash cookie middleware (``scrapy_splash.SplashCookiesMiddleware``)
+- any other middleware that gets cookies from ``request.cookies`` and
+  sets ``response.cookiejar``
 
 Autologin middleware uses autologin to make all requests while being
 logged in. It uses autologin to get cookies, detects logouts and tries
@@ -37,3 +43,6 @@ but avoiding logout links can be beneficial for two reasons:
 - no time is waster retrying requests that were logged out
 - in some cases, logout urls can be unique, and the spider will be logging
   out continuously (for example, ``/logout?sid=UNIQUE_ID``).
+
+Check ``tests.utils.TestSpider`` for an example of a minimal spider
+that uses ``link_looks_like_logout``.
