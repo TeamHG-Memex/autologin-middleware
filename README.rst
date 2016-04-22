@@ -1,6 +1,14 @@
 Autologin middleware
 ====================
 
+.. image:: https://img.shields.io/travis/TeamHG-Memex/autologin-middleware/integration-tests.svg
+   :target: http://travis-ci.org/TeamHG-Memex/autologin-middleware
+   :alt: Build Status
+
+.. image:: https://codecov.io/github/TeamHG-Memex/autologin-middleware/coverage.svg?branch=integration-tests
+   :target: https://codecov.io/github/TeamHG-Memex/autologin-middleware?branch=integration-tests
+   :alt: Code Coverage
+
 This is a a Scrapy middleware that uses
 `autologin <https://github.com/TeamHG-Memex/autologin>`_ http-api
 to maintain a logged-in state for a scrapy spider.
