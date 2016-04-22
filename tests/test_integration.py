@@ -29,7 +29,7 @@ class TestSpider(scrapy.Spider):
         self.link_extractor = LinkExtractor()
         self.collected_items = []
         self.visited_urls = []
-        super().__init__(self)
+        super().__init__()
 
     def parse(self, response):
         p = urlsplit(response.url)
