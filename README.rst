@@ -5,26 +5,37 @@ This is a a Scrapy middleware that uses
 `autologin <https://github.com/TeamHG-Memex/autologin>`_ http-api
 to maintain a logged-in state for a scrapy spider.
 
-Include the middleware into the project settings and specify autologin url::
+Include the autologin middleware into the project settings
+and specify autologin url::
 
     AUTOLOGIN_URL = 'http://127.0.0.1:8089'
     AUTOLOGIN_ENABLED = True
     DOWNLOADER_MIDDLEWARES['autologin_middleware.AutologinMiddleware'] = 584
-    ... and some cookie support
 
-Supported cookie "engines":
+Cookie support is also required. There are currently several options:
 
 - scrapy cookie middleware (``COOKIES_ENABLED = True``),
-- scrapy-splash cookie middleware (``scrapy_splash.SplashCookiesMiddleware``)
+  but autologin middleware requires access to cookies, so you need to enable
+  a custom cookie middleware::
+
+    DOWNLOADER_MIDDLEWARES = {
+        'autologin_middleware.AutologinMiddleware': 584,
+        'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': None,
+        'autologin_middleware.ExposeCookiesMiddleware': 700,
+    }
+
+- `scrapy-splash <https://github.com/scrapy-plugins/scrapy-splash>`_
+  cookie middleware (``scrapy_splash.SplashCookiesMiddleware``)
 - any other middleware that gets cookies from ``request.cookies`` and
-  sets ``response.cookiejar``
+  sets ``response.cookiejar`` like scrapy-splash middleware,
+  or exposes them in ``response.flags`` like ``ExposeCookiesMiddleware``.
 
 Autologin middleware uses autologin to make all requests while being
 logged in. It uses autologin to get cookies, detects logouts and tries
 to avoid them in the future. A single authorization domain for the spider
-is assumed. Middleware also puts ``autologin_active`` into request.meta,
-which is ``True`` only if we are logged in (and ``False`` if domain is skipped
-or login failed).
+is assumed. Autologin middleware also puts ``autologin_active`` into
+``request.meta``, which is ``True`` only if we are logged in
+(and to ``False`` if domain is skipped or login failed).
 
 There are some optional settings:
 
@@ -37,7 +48,8 @@ There are some optional settings:
 
 There is also an utility ``autologin_middleware.link_looks_like_logout``
 for checking if a links looks like a logout link: you can use it in the
-spider to avoid logout links. Logouts are handled by the middleware anyway,
+spider to avoid logout links. Logouts are handled
+by the autologin middleware anyway,
 but avoiding logout links can be beneficial for two reasons:
 
 - no time is waster retrying requests that were logged out
@@ -45,4 +57,4 @@ but avoiding logout links can be beneficial for two reasons:
   out continuously (for example, ``/logout?sid=UNIQUE_ID``).
 
 Check ``tests.utils.TestSpider`` for an example of a minimal spider
-that uses ``link_looks_like_logout``.
+that uses ``link_looks_like_logout``, and an example of project settings.

@@ -5,7 +5,9 @@ import logging
 from urllib.parse import urljoin
 
 import scrapy
+from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
 from scrapy.exceptions import IgnoreRequest, NotConfigured
+from scrapy.http.cookies import CookieJar
 from twisted.internet.defer import inlineCallbacks
 
 
@@ -205,18 +207,51 @@ class AutologinMiddleware:
 def _response_cookies(response):
     ''' Return response cookies as a dict.
     '''
+    cookies = []
     if hasattr(response, 'cookiejar'):
         cookies = response.cookiejar or []
     else:
-        pass # TODO
+        for obj in response.flags:
+            if isinstance(obj, CookieJar):
+                cookies = obj
+                break
     return {m.name: m.value for m in cookies}
 
 
 def _cookies_to_har(cookies):
-    # Leave only documented cookie attributes
-    return [{
+    ''' Leave only documented cookie attributes.
+    '''
+    return [_cookie_to_har(c) for c in cookies]
+
+
+def _cookie_to_har(c):
+    d = {
         'name': c['name'],
         'value': c['value'],
         'path': c.get('path', '/'),
-        'domain': c.get('domain', ''),
-        } for c in cookies]
+    }
+    # Do not set domain if domain_specified is False
+    if c.get('domain') and c.get('domain_specified') != False:
+        d['domain'] = c['domain']
+    return d
+
+
+class ExposeCookiesMiddleware(CookiesMiddleware):
+    """
+    This middleware appends CookieJar with current cookies to response flags.
+
+    To use it, disable default CookiesMiddleware and enable
+    this middleware instead::
+
+        DOWNLOADER_MIDDLEWARES = {
+            'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': None,
+            'autologin.middleware.ExposeCookiesMiddleware': 700,
+        }
+
+    """
+    def process_response(self, request, response, spider):
+        response = super(ExposeCookiesMiddleware, self).process_response(
+            request, response, spider)
+        cookiejarkey = request.meta.get('cookiejar')
+        response.flags.append(self.jars[cookiejarkey])
+        return response
