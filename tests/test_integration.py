@@ -207,9 +207,15 @@ class LoginWithLogout(Login):
         self.putChild(b'slow', authenticated_text(html('slow'), delay=1.0)())
 
 
-# TODO
-#class TestSkip(TestBasic):
-#    settings = {'_AUTOLOGIN_FORCE_SKIP': True}
+class TestSkip(SpiderTestCase):
+    settings = {'_AUTOLOGIN_FORCE_SKIP': True}
+
+    @defer.inlineCallbacks
+    def test(self):
+        with MockServer(Login) as s:
+            yield self.crawler.crawl(url=s.root_url)
+        spider = self.crawler.spider
+        assert set(spider.visited_urls) == {'/', '/login'}
 
 
 class TestAutologin(SpiderTestCase):
