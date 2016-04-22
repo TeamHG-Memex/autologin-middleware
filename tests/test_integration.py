@@ -55,6 +55,8 @@ class SpiderTestCase(TestCase):
         settings = {
             'AUTOLOGIN_URL': 'http://127.0.0.1:8089',
             'AUTOLOGIN_ENABLED': True,
+            # Higher fixed value to make the test more reliable
+            'AUTOLOGIN_MAX_LOGOUT_COUNT': 8,
             'COOKIES_ENABLED': True,
             'COOKIES_DEBUG': True,
             'DOWNLOADER_MIDDLEWARES': {
@@ -168,13 +170,21 @@ class LoginIfUserAgentOk(Login):
 class LoginWithLogout(Login):
     class _Logout(Resource):
         isLeaf = True
+        def __init__(self, delay=0):
+            super().__init__()
+            self.delay = delay
 
         def render_GET(self, request):
             session_id = get_session_id(request)
             if session_id is not None:
                 SESSIONS[session_id] = False
             request.setHeader(b'set-cookie', b'_uctest_auth=')
-            return html('you have been logged out').encode()
+            reactor.callLater(self.delay, self._delayedRender, request)
+            return NOT_DONE_YET
+
+        def _delayedRender(self, request):
+            request.write(html('you have been logged out').encode())
+            request.finish()
 
     def __init__(self):
         super().__init__()
@@ -192,7 +202,7 @@ class LoginWithLogout(Login):
         self.putChild(b'one', authenticated_text(html('1'))())
         self.putChild(b'l0gout1', self._Logout())
         self.putChild(b'two', authenticated_text(html('2'))())
-        self.putChild(b'l0gout2', self._Logout())
+        self.putChild(b'l0gout2', self._Logout(delay=0.2))
         self.putChild(b'three', authenticated_text(html('3'))())
         self.putChild(b'slow', authenticated_text(html('slow'), delay=1.0)())
 
@@ -228,8 +238,11 @@ class TestAutologin(SpiderTestCase):
         with MockServer(LoginWithLogout) as s:
             yield self.crawler.crawl(url=s.root_url)
         spider = self.crawler.spider
-        assert set(spider.visited_urls) == \
-               {'/', '/hidden', '/one', '/two', '/three', '/slow'}
+        mandatory_urls = {'/', '/hidden', '/one', '/two', '/three', '/slow'}
+        spider_urls = set(spider.visited_urls)
+        assert mandatory_urls.difference(spider_urls) == set()
+        assert spider_urls.difference(
+            mandatory_urls | {'/l0gout1', '/l0gout2'}) == set()
 
 
 class TestPending(SpiderTestCase):

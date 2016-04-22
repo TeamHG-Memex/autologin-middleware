@@ -56,9 +56,10 @@ class AutologinMiddleware:
         self.autologin_download_delay = s.get('AUTOLOGIN_DOWNLOAD_DELAY')
         self.logout_url = s.get('LOGOUT_URL')
         # _force_skip and _n_pend and for testing only
-        self._force_skip = s.get('_AUTOLOGIN_FORCE_SKIP')
-        self._n_pend = s.get('_AUTOLOGIN_N_PEND')
+        self._force_skip = s.getbool('_AUTOLOGIN_FORCE_SKIP')
+        self._n_pend = s.getint('_AUTOLOGIN_N_PEND')
         self._login_df = None
+        self.max_logout_count = s.getint('AUTOLOGIN_MAX_LOGOUT_COUNT', 4)
         auth_cookies = s.get('AUTH_COOKIES')
         self.skipped = False
         if auth_cookies:
@@ -182,17 +183,22 @@ class AutologinMiddleware:
                 # We could have already done relogin after initial logout
                 if any(autologin_meta['cookie_dict'].get(c['name']) !=
                         c['value'] for c in self.auth_cookies):
-                    logger.debug('Request %s was stale, will retry %s',
-                                 response, retryreq)
-                    return retryreq
+                    logger.debug('Request was stale, will retry %s', retryreq)
                 else:
                     self.logged_in = False
-                    logger.debug('Logged out, will not retry %s', retryreq)
                     # It's better to re-login straight away
                     yield self._ensure_login(retryreq.url, spider)
-                    raise IgnoreRequest
-            else:
-                return retryreq
+                    logout_count = retryreq.meta['autologin_logout_count'] = (
+                        retryreq.meta.get('autologin_logout_count', 0) + 1)
+                    if logout_count >= self.max_logout_count:
+                        logger.debug('Max logouts exceeded, will not retry %s',
+                                     retryreq)
+                        raise IgnoreRequest
+                    else:
+                        logger.debug(
+                            'Request caused log out (%d), still retrying %s',
+                            logout_count, retryreq)
+            return retryreq
         return response
 
     def is_logout(self, response):
