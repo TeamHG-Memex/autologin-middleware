@@ -202,26 +202,27 @@ class AutologinMiddleware:
         return response
 
     def is_logout(self, response):
-        if self.auth_cookies:
-            auth_cookies = {c['name'] for c in self.auth_cookies if c['value']}
-            response_cookies = {
-                name for name, value in _response_cookies(response).items()
-                if value}
-            return bool(auth_cookies - response_cookies)
+        response_cookies = _response_cookies(response)
+        if self.auth_cookies and response_cookies is not None:
+            auth_keys = {c['name'] for c in self.auth_cookies if c['value']}
+            response_keys = {
+                name for name, value in response_cookies.items() if value}
+            return bool(auth_keys - response_keys)
 
 
 def _response_cookies(response):
-    ''' Return response cookies as a dict.
+    ''' Return response cookies as a dict, or None if there are no cookies.
     '''
-    cookies = []
+    cookies = None
     if hasattr(response, 'cookiejar'):
-        cookies = response.cookiejar or []
+        cookies = response.cookiejar
     else:
         for obj in response.flags:
             if isinstance(obj, CookieJar):
                 cookies = obj
                 break
-    return {m.name: m.value for m in cookies}
+    if cookies is not None:
+        return {m.name: m.value for m in cookies}
 
 
 def _cookies_to_har(cookies):
