@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import uuid
 from urllib.parse import urlsplit, urlunsplit
 
+from flaky import flaky
 import scrapy
 from scrapy.crawler import CrawlerRunner
 from scrapy.linkextractors import LinkExtractor
@@ -218,6 +219,7 @@ class TestSkip(SpiderTestCase):
         assert set(spider.visited_urls) == {'/', '/login'}
 
 
+@flaky
 class TestAutologin(SpiderTestCase):
     settings = {
         'USERNAME': 'admin',
