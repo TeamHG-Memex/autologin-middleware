@@ -22,27 +22,6 @@ class AutologinMiddleware:
     is assumed. Middleware also puts "autologin_active" into request.meta,
     which is True only if we are logged in (and False if domain is skipped
     or login failed).
-
-    Required settings:
-
-    AUTOLOGIN_ENABLED = True
-    AUTOLOGIN_URL: url of where the autologin service is running
-    ... and some cookie support
-
-    Supported cookie "engines":
-
-    - scrapy cookie middleware (COOKIES_ENABLED = True),
-    - scrapy_splash.SplashCookiesMiddleware
-    - any other middleware that gets cookies from request.cookies and
-      sets response.cookiejar
-
-    Optional settings:
-    AUTH_COOKIES: pass auth cookies after manual login (format is
-    "name=value; name2=value2")
-    LOGOUT_URL: pass url substring to avoid
-    USERNAME, PASSWORD, LOGIN_URL are passed to autologin and
-    override values from stored credentials.  LOGIN_URL is a relative url.
-    It can be omitted if it is the same as the start url.
     '''
     def __init__(self, autologin_url, crawler):
         self.crawler = crawler
