@@ -10,7 +10,7 @@ and specify autologin url::
 
     AUTOLOGIN_URL = 'http://127.0.0.1:8089'
     AUTOLOGIN_ENABLED = True
-    DOWNLOADER_MIDDLEWARES['autologin_middleware.AutologinMiddleware'] = 584
+    DOWNLOADER_MIDDLEWARES['autologin_middleware.AutologinMiddleware'] = 605
 
 Cookie support is also required. There are currently several options:
 
@@ -19,7 +19,7 @@ Cookie support is also required. There are currently several options:
   a custom cookie middleware::
 
     DOWNLOADER_MIDDLEWARES = {
-        'autologin_middleware.AutologinMiddleware': 584,
+        'autologin_middleware.AutologinMiddleware': 605,
         'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': None,
         'autologin_middleware.ExposeCookiesMiddleware': 700,
     }

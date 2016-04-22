@@ -51,7 +51,7 @@ class SpiderTestCase(TestCase):
             'COOKIES_ENABLED': True,
             'COOKIES_DEBUG': True,
             'DOWNLOADER_MIDDLEWARES': {
-                'autologin_middleware.AutologinMiddleware': 584,
+                'autologin_middleware.AutologinMiddleware': 605,
                 'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': None,
                 'autologin_middleware.ExposeCookiesMiddleware': 700,
             }
