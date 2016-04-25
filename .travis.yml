@@ -4,7 +4,7 @@ sudo: false
 
 branches:
     only:
-        - integration-tests
+        - master
         - /^\d\.\d+$/
 
 before_install:
