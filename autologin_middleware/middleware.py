@@ -5,7 +5,9 @@ import logging
 from urllib.parse import urljoin
 
 import scrapy
+from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
 from scrapy.exceptions import IgnoreRequest, NotConfigured
+from scrapy.http.cookies import CookieJar
 from twisted.internet.defer import inlineCallbacks
 
 
@@ -20,19 +22,6 @@ class AutologinMiddleware:
     is assumed. Middleware also puts "autologin_active" into request.meta,
     which is True only if we are logged in (and False if domain is skipped
     or login failed).
-
-    Required settings:
-    AUTOLOGIN_ENABLED = True
-    AUTOLOGIN_URL: url of where the autologin service is running
-    COOKIES_ENABLED = False (this could be relaxed perhaps)
-
-    Optional settings:
-    AUTH_COOKIES: pass auth cookies after manual login (format is
-    "name=value; name2=value2")
-    LOGOUT_URL: pass url substring to avoid
-    USERNAME, PASSWORD, LOGIN_URL are passed to autologin and
-    override values from stored credentials.  LOGIN_URL is a relative url.
-    It can be omitted if it is the same as the start url.
     '''
     def __init__(self, autologin_url, crawler):
         self.crawler = crawler
@@ -46,9 +35,10 @@ class AutologinMiddleware:
         self.autologin_download_delay = s.get('AUTOLOGIN_DOWNLOAD_DELAY')
         self.logout_url = s.get('LOGOUT_URL')
         # _force_skip and _n_pend and for testing only
-        self._force_skip = s.get('_AUTOLOGIN_FORCE_SKIP')
-        self._n_pend = s.get('_AUTOLOGIN_N_PEND')
+        self._force_skip = s.getbool('_AUTOLOGIN_FORCE_SKIP')
+        self._n_pend = s.getint('_AUTOLOGIN_N_PEND')
         self._login_df = None
+        self.max_logout_count = s.getint('AUTOLOGIN_MAX_LOGOUT_COUNT', 4)
         auth_cookies = s.get('AUTH_COOKIES')
         self.skipped = False
         if auth_cookies:
@@ -162,41 +152,92 @@ class AutologinMiddleware:
     def process_response(self, request, response, spider):
         ''' If we were logged out, login again and retry request.
         '''
-        if self.is_logout(response):
+        if request.meta.get('_autologin') and self.is_logout(response):
             autologin_meta = request.meta['_autologin']
             retryreq = autologin_meta['request'].copy()
             retryreq.dont_filter = True
-            logger.debug('Logout at %s: %s', retryreq.url, response.cookiejar)
+            logger.debug(
+                'Logout at %s: %s', retryreq.url, _response_cookies(response))
             if self.logged_in:
                 # We could have already done relogin after initial logout
                 if any(autologin_meta['cookie_dict'].get(c['name']) !=
                         c['value'] for c in self.auth_cookies):
-                    logger.debug('Request %s was stale, will retry %s',
-                                response, retryreq)
-                    return retryreq
+                    logger.debug('Request was stale, will retry %s', retryreq)
                 else:
                     self.logged_in = False
-                    logger.debug('Logged out, will not retry %s', retryreq)
                     # It's better to re-login straight away
                     yield self._ensure_login(retryreq.url, spider)
-                    raise IgnoreRequest
-            else:
-                return retryreq
+                    logout_count = retryreq.meta['autologin_logout_count'] = (
+                        retryreq.meta.get('autologin_logout_count', 0) + 1)
+                    if logout_count >= self.max_logout_count:
+                        logger.debug('Max logouts exceeded, will not retry %s',
+                                     retryreq)
+                        raise IgnoreRequest
+                    else:
+                        logger.debug(
+                            'Request caused log out (%d), still retrying %s',
+                            logout_count, retryreq)
+            return retryreq
         return response
 
     def is_logout(self, response):
-        if self.auth_cookies and \
-                getattr(response, 'cookiejar', None) is not None:
-            auth_cookies = {c['name'] for c in self.auth_cookies if c['value']}
-            response_cookies = {m.name for m in response.cookiejar if m.value}
-            return bool(auth_cookies - response_cookies)
+        response_cookies = _response_cookies(response)
+        if self.auth_cookies and response_cookies is not None:
+            auth_keys = {c['name'] for c in self.auth_cookies if c['value']}
+            response_keys = {
+                name for name, value in response_cookies.items() if value}
+            return bool(auth_keys - response_keys)
+
+
+def _response_cookies(response):
+    ''' Return response cookies as a dict, or None if there are no cookies.
+    '''
+    cookies = None
+    if hasattr(response, 'cookiejar'):
+        cookies = response.cookiejar
+    else:
+        for obj in response.flags:
+            if isinstance(obj, CookieJar):
+                cookies = obj
+                break
+    if cookies is not None:
+        return {m.name: m.value for m in cookies}
 
 
 def _cookies_to_har(cookies):
-    # Leave only documented cookie attributes
-    return [{
+    ''' Leave only documented cookie attributes.
+    '''
+    return [_cookie_to_har(c) for c in cookies]
+
+
+def _cookie_to_har(c):
+    d = {
         'name': c['name'],
         'value': c['value'],
         'path': c.get('path', '/'),
-        'domain': c.get('domain', ''),
-        } for c in cookies]
+    }
+    # Do not set domain if domain_specified is False
+    if c.get('domain') and c.get('domain_specified') != False:
+        d['domain'] = c['domain']
+    return d
+
+
+class ExposeCookiesMiddleware(CookiesMiddleware):
+    """
+    This middleware appends CookieJar with current cookies to response flags.
+
+    To use it, disable default CookiesMiddleware and enable
+    this middleware instead::
+
+        DOWNLOADER_MIDDLEWARES = {
+            'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': None,
+            'autologin.middleware.ExposeCookiesMiddleware': 700,
+        }
+
+    """
+    def process_response(self, request, response, spider):
+        response = super(ExposeCookiesMiddleware, self).process_response(
+            request, response, spider)
+        cookiejarkey = request.meta.get('cookiejar')
+        response.flags.append(self.jars[cookiejarkey])
+        return response
