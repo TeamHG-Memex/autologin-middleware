@@ -44,6 +44,9 @@ to avoid them in the future. A single authorization domain for the spider
 is assumed. Autologin middleware also puts ``autologin_active`` into
 ``request.meta``, which is ``True`` only if we are logged in
 (and to ``False`` if domain is skipped or login failed).
+If requests are made via splash (and ``SPLASH_URL`` is set),
+autologin middleware passes it to autologin,
+and this splash instance is also used to obtain login cookies.
 
 There are some optional settings:
 

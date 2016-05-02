@@ -63,7 +63,7 @@ class AutologinMiddleware:
         '''
         if '_autologin' in request.meta or request.meta.get('skip_autologin'):
             return
-        yield self._ensure_login(request.url, spider)
+        yield self._ensure_login(request, spider)
         if self.skipped:
             request.meta['autologin_active'] = False
             return
@@ -84,17 +84,18 @@ class AutologinMiddleware:
                     c['name']: c['value'] for c in self.auth_cookies}
 
     @inlineCallbacks
-    def _ensure_login(self, url, spider):
+    def _ensure_login(self, request, spider):
         if not (self.skipped or self.logged_in):
-            self._login_df = self._login_df or self._login(url, spider)
+            self._login_df = self._login_df or self._login(request, spider)
             yield self._login_df
             self._login_df = None
 
     @inlineCallbacks
-    def _login(self, url, spider):
+    def _login(self, request, spider):
         while not (self.skipped or self.logged_in):
-            request = self._login_request(url)
-            response = yield self.crawler.engine.download(request, spider)
+            login_request = self._login_request(request)
+            response = yield self.crawler.engine.download(
+                login_request, spider)
             response_data = json.loads(response.text)
             status = response_data['status']
             if self._force_skip:
@@ -123,18 +124,20 @@ class AutologinMiddleware:
                     self.auth_cookies = None
                     self.skipped = True
 
-    def _login_request(self, url):
-        logger.debug('Attempting login at %s', url)
+    def _login_request(self, request):
+        logger.debug('Attempting login at %s', request.url)
         autologin_endpoint = urljoin(self.autologin_url, '/login-cookies')
         params = {
-            'url': urljoin(url, self.login_url) if self.login_url else url,
+            'url': urljoin(request.url, self.login_url) \
+                   if self.login_url else request.url,
             'username': self.username,
             'password': self.password,
-            'splash_url': self.splash_url,
             'settings': {
                 'ROBOTSTXT_OBEY': False,
             }
         }
+        if self.splash_url and 'splash' in request.meta:
+            params['splash_url'] = self.splash_url
         if self.user_agent:
             params['settings']['USER_AGENT'] = self.user_agent
         if self.autologin_download_delay:
@@ -166,7 +169,7 @@ class AutologinMiddleware:
                 else:
                     self.logged_in = False
                     # It's better to re-login straight away
-                    yield self._ensure_login(retryreq.url, spider)
+                    yield self._ensure_login(retryreq, spider)
                     logout_count = retryreq.meta['autologin_logout_count'] = (
                         retryreq.meta.get('autologin_logout_count', 0) + 1)
                     if logout_count >= self.max_logout_count:
