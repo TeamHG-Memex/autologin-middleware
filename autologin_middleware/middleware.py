@@ -31,6 +31,7 @@ class AutologinMiddleware:
         self.login_url = s.get('LOGIN_URL')
         self.username = s.get('USERNAME')
         self.password = s.get('PASSWORD')
+        self.extra_js = s.get('AUTOLOGIN_EXTRA_JS')
         self.user_agent = s.get('USER_AGENT')
         self.autologin_download_delay = s.get('AUTOLOGIN_DOWNLOAD_DELAY')
         self.logout_url = s.get('LOGOUT_URL')
@@ -132,6 +133,7 @@ class AutologinMiddleware:
                    if self.login_url else request.url,
             'username': self.username,
             'password': self.password,
+            'extra_js': self.extra_js,
             'settings': {
                 'ROBOTSTXT_OBEY': False,
             }
