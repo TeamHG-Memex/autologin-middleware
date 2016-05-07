@@ -50,12 +50,12 @@ and this splash instance is also used to obtain login cookies.
 
 There are some optional settings:
 
-- ``AUTH_COOKIES``: pass auth cookies after manual login
+- ``AUTOLOGIN_COOKIES``: pass auth cookies after manual login
   (format is ``name=value; name2=value2``).
-- ``LOGOUT_URL``: pass url substring to avoid.
-- ``USERNAME``, ``PASSWORD``, ``LOGIN_URL``, ``AUTOLOGIN_EXTRA_JS``
-  are passed to autologin and override values from stored credentials.
-  ``LOGIN_URL`` is a relative url,
+- ``AUTOLOGIN_LOGOUT_URL``: pass url substring to avoid.
+- ``AUTOLOGIN_USERNAME``, ``AUTOLOGIN_PASSWORD``, ``AUTOLOGIN_LOGIN_URL``,
+  ``AUTOLOGIN_EXTRA_JS`` are passed to autologin and override values
+  from stored credentials.  ``AUTOLOGIN_LOGIN_URL`` is a relative url,
   and can be omitted if it is the same as the start url.
   ``AUTOLOGIN_EXTRA_JS`` is required only if you want to use the ``extra_js``
   feature of the autologin.

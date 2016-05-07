@@ -28,19 +28,19 @@ class AutologinMiddleware:
         s = crawler.settings
         self.autologin_url = autologin_url
         self.splash_url = s.get('SPLASH_URL')
-        self.login_url = s.get('LOGIN_URL')
-        self.username = s.get('USERNAME')
-        self.password = s.get('PASSWORD')
+        self.login_url = s.get('AUTOLOGIN_LOGIN_URL')
+        self.username = s.get('AUTOLOGIN_USERNAME')
+        self.password = s.get('AUTOLOGIN_PASSWORD')
         self.extra_js = s.get('AUTOLOGIN_EXTRA_JS')
         self.user_agent = s.get('USER_AGENT')
         self.autologin_download_delay = s.get('AUTOLOGIN_DOWNLOAD_DELAY')
-        self.logout_url = s.get('LOGOUT_URL')
+        self.logout_url = s.get('AUTOLOGIN_LOGOUT_URL')
         # _force_skip and _n_pend and for testing only
         self._force_skip = s.getbool('_AUTOLOGIN_FORCE_SKIP')
         self._n_pend = s.getint('_AUTOLOGIN_N_PEND')
         self._login_df = None
         self.max_logout_count = s.getint('AUTOLOGIN_MAX_LOGOUT_COUNT', 4)
-        auth_cookies = s.get('AUTH_COOKIES')
+        auth_cookies = s.get('AUTOLOGIN_COOKIES')
         self.skipped = False
         if auth_cookies:
             cookies = SimpleCookie()

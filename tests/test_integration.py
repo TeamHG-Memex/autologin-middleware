@@ -222,10 +222,10 @@ class TestSkip(SpiderTestCase):
 @flaky
 class TestAutologin(SpiderTestCase):
     settings = {
-        'USERNAME': 'admin',
-        'PASSWORD': 'secret',
-        'LOGIN_URL': '/login',
-        'LOGOUT_URL': 'action=l0gout',
+        'AUTOLOGIN_USERNAME': 'admin',
+        'AUTOLOGIN_PASSWORD': 'secret',
+        'AUTOLOGIN_LOGIN_URL': '/login',
+        'AUTOLOGIN_LOGOUT_URL': 'action=l0gout',
         'AUTOLOGIN_DOWNLOAD_DELAY': 0.01,
     }
 
@@ -255,10 +255,10 @@ class TestAutologin(SpiderTestCase):
 
 class TestPending(SpiderTestCase):
     settings = {
-        'USERNAME': 'admin',
-        'PASSWORD': 'secret',
-        'LOGIN_URL': '/login',
-        'LOGOUT_URL': 'action=l0gout',
+        'AUTOLOGIN_USERNAME': 'admin',
+        'AUTOLOGIN_PASSWORD': 'secret',
+        'AUTOLOGIN_LOGIN_URL': '/login',
+        'AUTOLOGIN_LOGOUT_URL': 'action=l0gout',
         'AUTOLOGIN_DOWNLOAD_DELAY': 0.01,
         '_AUTOLOGIN_N_PEND': 3,
     }
@@ -275,9 +275,9 @@ class TestPending(SpiderTestCase):
 
 class TestAutoLoginCustomHeaders(SpiderTestCase):
     settings = {
-        'USERNAME': 'admin',
-        'PASSWORD': 'secret',
-        'LOGIN_URL': '/login',
+        'AUTOLOGIN_USERNAME': 'admin',
+        'AUTOLOGIN_PASSWORD': 'secret',
+        'AUTOLOGIN_LOGIN_URL': '/login',
         'USER_AGENT': 'MyCustomAgent',
         'AUTOLOGIN_DOWNLOAD_DELAY': 0.01,
     }
