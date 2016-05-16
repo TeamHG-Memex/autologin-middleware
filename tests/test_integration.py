@@ -231,8 +231,8 @@ class TestAutologin(SpiderTestCase):
 
     @defer.inlineCallbacks
     def test_login(self):
-        ''' No logout links, just one page after login.
-        '''
+        """ No logout links, just one page after login.
+        """
         with MockServer(Login) as s:
             yield self.crawler.crawl(url=s.root_url)
         spider = self.crawler.spider
@@ -241,8 +241,8 @@ class TestAutologin(SpiderTestCase):
 
     @defer.inlineCallbacks
     def test_login_with_logout(self):
-        ''' Login with logout.
-        '''
+        """ Login with logout.
+        """
         with MockServer(LoginWithLogout) as s:
             yield self.crawler.crawl(url=s.root_url)
         spider = self.crawler.spider

@@ -15,14 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 class AutologinMiddleware:
-    '''
+    """
     Autologin middleware uses autologin to make all requests while being
     logged in. It uses autologin to get cookies, detects logouts and tries
     to avoid them in the future. A single authorization domain for the spider
     is assumed. Middleware also puts "autologin_active" into request.meta,
     which is True only if we are logged in (and False if domain is skipped
     or login failed).
-    '''
+    """
     def __init__(self, autologin_url, crawler):
         self.crawler = crawler
         s = crawler.settings
@@ -60,8 +60,8 @@ class AutologinMiddleware:
 
     @inlineCallbacks
     def process_request(self, request, spider):
-        ''' Login if we are not logged in yet.
-        '''
+        """ Login if we are not logged in yet.
+        """
         if '_autologin' in request.meta or request.meta.get('skip_autologin'):
             return
         yield self._ensure_login(request, spider)
@@ -155,8 +155,8 @@ class AutologinMiddleware:
 
     @inlineCallbacks
     def process_response(self, request, response, spider):
-        ''' If we were logged out, login again and retry request.
-        '''
+        """ If we were logged out, login again and retry request.
+        """
         if request.meta.get('_autologin') and self.is_logout(response):
             autologin_meta = request.meta['_autologin']
             retryreq = autologin_meta['request'].copy()
@@ -195,8 +195,8 @@ class AutologinMiddleware:
 
 
 def _response_cookies(response):
-    ''' Return response cookies as a dict, or None if there are no cookies.
-    '''
+    """ Return response cookies as a dict, or None if there are no cookies.
+    """
     cookies = None
     if hasattr(response, 'cookiejar'):
         cookies = response.cookiejar
@@ -210,8 +210,8 @@ def _response_cookies(response):
 
 
 def _cookies_to_har(cookies):
-    ''' Leave only documented cookie attributes.
-    '''
+    """ Leave only documented cookie attributes.
+    """
     return [_cookie_to_har(c) for c in cookies]
 
 
