@@ -1,14 +1,14 @@
 from copy import deepcopy
 import json
-from http.cookies import SimpleCookie
 import logging
-from urllib.parse import urljoin
+from six.moves.http_cookies import SimpleCookie
+from six.moves.urllib.parse import urljoin
 
 import scrapy
 from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
 from scrapy.exceptions import IgnoreRequest, NotConfigured
 from scrapy.http.cookies import CookieJar
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, returnValue
 
 
 logger = logging.getLogger(__name__)
@@ -63,11 +63,11 @@ class AutologinMiddleware:
         """ Login if we are not logged in yet.
         """
         if '_autologin' in request.meta or request.meta.get('skip_autologin'):
-            return
+            returnValue(None)
         yield self._ensure_login(request, spider)
         if self.skipped:
             request.meta['autologin_active'] = False
-            return
+            returnValue(None)
         elif self.logged_in:
             request.meta['autologin_active'] = True
             if self.logout_url and self.logout_url in request.url:
@@ -182,8 +182,8 @@ class AutologinMiddleware:
                         logger.debug(
                             'Request caused log out (%d), still retrying %s',
                             logout_count, retryreq)
-            return retryreq
-        return response
+            returnValue(retryreq)
+        returnValue(response)
 
     def is_logout(self, response):
         response_cookies = _response_cookies(response)

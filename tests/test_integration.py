@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 import uuid
-from urllib.parse import urlsplit, urlunsplit
+from six.moves.urllib.parse import urlsplit, urlunsplit
 
 from flaky import flaky
 import scrapy
@@ -30,7 +30,7 @@ class TestSpider(scrapy.Spider):
         self.link_extractor = LinkExtractor()
         self.collected_items = []
         self.visited_urls = []
-        super().__init__()
+        super(TestSpider, self).__init__()
 
     def parse(self, response):
         p = urlsplit(response.url)
@@ -134,7 +134,7 @@ class Login(Resource):
         def render_POST(self, request):
             if request.args[b'login'][0] == b'admin' and \
                     request.args[b'password'][0] == b'secret':
-                session_id = bytes(uuid.uuid4().hex, 'ascii')
+                session_id = uuid.uuid4().hex.encode('ascii')
                 SESSIONS[session_id] = True
                 request.setHeader(b'set-cookie', b'_uctest_auth=' + session_id)
             return Redirect(b'/').render(request)
@@ -152,7 +152,7 @@ class Login(Resource):
                 return html('<a href="/login">Login</a>').encode()
 
     def __init__(self):
-        super().__init__()
+        Resource.__init__(self)
         self.putChild(b'', self._Index())
         self.putChild(b'login', self._Login())
         self.putChild(b'hidden', authenticated_text(html('hidden resource'))())
@@ -165,14 +165,14 @@ class LoginIfUserAgentOk(Login):
             user_agent = request.requestHeaders.getRawHeaders(b'User-Agent')
             if user_agent != [b'MyCustomAgent']:
                 return html("Invalid User-Agent: %s" % user_agent).encode('utf8')
-            return super(LoginIfUserAgentOk._Login, self).render_POST(request)
+            return Login._Login.render_POST(self, request)
 
 
 class LoginWithLogout(Login):
     class _Logout(Resource):
         isLeaf = True
         def __init__(self, delay=0):
-            super().__init__()
+            Resource.__init__(self)
             self.delay = delay
 
         def render_GET(self, request):
@@ -188,7 +188,7 @@ class LoginWithLogout(Login):
             request.finish()
 
     def __init__(self):
-        super().__init__()
+        Login.__init__(self)
         self.putChild(b'hidden', authenticated_text(html(
             '<a href="/one">one</a> | '
             '<a href="/one?action=l0gout">one</a> | '     # LOGOUT_URL
