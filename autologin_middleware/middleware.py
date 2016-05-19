@@ -139,7 +139,7 @@ class AutologinMiddleware:
             }
         }
         if self.splash_url and 'splash' in request.meta:
-            params['splash_url'] = self.splash_url
+            params['settings']['SPLASH_URL'] = self.splash_url
         if self.user_agent:
             params['settings']['USER_AGENT'] = self.user_agent
         if self.autologin_download_delay:
