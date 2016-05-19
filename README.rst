@@ -60,6 +60,10 @@ There are some optional settings:
   ``AUTOLOGIN_EXTRA_JS`` is required only if you want to use the ``extra_js``
   feature of the autologin.
 
+Autologin middleware passes the following settings to the autologin:
+``SPLASH_URL``, ``USER_AGENT``, ``HTTP_PROXY``, ``HTTPS_PROXY``, so they
+are used for autologin requests.
+
 There is also an utility ``autologin_middleware.link_looks_like_logout``
 for checking if a links looks like a logout link: you can use it in the
 spider to avoid logout links. Logouts are handled
