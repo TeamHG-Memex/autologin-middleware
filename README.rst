@@ -1,6 +1,10 @@
 Autologin middleware
 ====================
 
+.. image:: https://img.shields.io/pypi/v/autologin-middleware.svg
+   :target: https://pypi.python.org/pypi/autologin-middleware
+   :alt: PyPI Version
+
 .. image:: https://img.shields.io/travis/TeamHG-Memex/autologin-middleware/master.svg
    :target: http://travis-ci.org/TeamHG-Memex/autologin-middleware
    :alt: Build Status
@@ -12,6 +16,10 @@ Autologin middleware
 This is a a Scrapy middleware that uses
 `autologin <https://github.com/TeamHG-Memex/autologin>`_ http-api
 to maintain a logged-in state for a scrapy spider.
+
+Install with pip::
+
+    pip install autologin-middleware
 
 Include the autologin middleware into the project settings
 and specify autologin url::
@@ -76,3 +84,5 @@ but avoiding logout links can be beneficial for two reasons:
 
 Check ``tests.utils.TestSpider`` for an example of a minimal spider
 that uses ``link_looks_like_logout``, and an example of project settings.
+
+License is MIT.
