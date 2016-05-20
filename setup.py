@@ -22,7 +22,7 @@ setup(
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
-        'Topic :: Web scraping, Utilities',
+        'Topic :: Internet :: WWW/HTTP :: Indexing/Search',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2',
