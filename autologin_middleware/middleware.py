@@ -29,7 +29,7 @@ class AutologinMiddleware:
         self.passed_setting = {
             name: s.get(name) for name in [
                 'SPLASH_URL', 'USER_AGENT', 'HTTP_PROXY', 'HTTPS_PROXY']
-            if s.get('name')}
+            if s.get(name)}
         self.autologin_url = autologin_url
         self.login_url = s.get('AUTOLOGIN_LOGIN_URL')
         self.username = s.get('AUTOLOGIN_USERNAME')
