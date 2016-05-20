@@ -148,7 +148,7 @@ class AutologinMiddleware:
             body=json.dumps(params).encode(),
             headers={'content-type': 'application/json'},
             dont_filter=True,
-            meta={'skip_autologin': True},
+            meta={'skip_autologin': True, 'proxy': None},
             priority=1000)
 
     @inlineCallbacks
