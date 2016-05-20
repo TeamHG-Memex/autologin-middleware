@@ -26,13 +26,15 @@ class AutologinMiddleware:
     def __init__(self, autologin_url, crawler):
         self.crawler = crawler
         s = crawler.settings
+        self.passed_setting = {
+            name: s.get(name) for name in [
+                'SPLASH_URL', 'USER_AGENT', 'HTTP_PROXY', 'HTTPS_PROXY']
+            if s.get(name)}
         self.autologin_url = autologin_url
-        self.splash_url = s.get('SPLASH_URL')
         self.login_url = s.get('AUTOLOGIN_LOGIN_URL')
         self.username = s.get('AUTOLOGIN_USERNAME')
         self.password = s.get('AUTOLOGIN_PASSWORD')
         self.extra_js = s.get('AUTOLOGIN_EXTRA_JS')
-        self.user_agent = s.get('USER_AGENT')
         self.autologin_download_delay = s.get('AUTOLOGIN_DOWNLOAD_DELAY')
         self.logout_url = s.get('AUTOLOGIN_LOGOUT_URL')
         # _force_skip and _n_pend and for testing only
@@ -129,7 +131,7 @@ class AutologinMiddleware:
         logger.debug('Attempting login at %s', request.url)
         autologin_endpoint = urljoin(self.autologin_url, '/login-cookies')
         params = {
-            'url': urljoin(request.url, self.login_url) \
+            'url': urljoin(request.url, self.login_url)
                    if self.login_url else request.url,
             'username': self.username,
             'password': self.password,
@@ -138,13 +140,9 @@ class AutologinMiddleware:
                 'ROBOTSTXT_OBEY': False,
             }
         }
-        if self.splash_url and 'splash' in request.meta:
-            params['settings']['SPLASH_URL'] = self.splash_url
-        if self.user_agent:
-            params['settings']['USER_AGENT'] = self.user_agent
+        params['settings'].update(self.passed_setting)
         if self.autologin_download_delay:
-            params['settings']['DOWNLOAD_DELAY'] = \
-                self.autologin_download_delay
+            params['settings']['DOWNLOAD_DELAY'] = self.autologin_download_delay
         return scrapy.Request(
             autologin_endpoint, method='POST',
             body=json.dumps(params).encode(),
