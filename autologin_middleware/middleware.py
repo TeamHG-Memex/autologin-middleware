@@ -77,7 +77,6 @@ class AutologinMiddleware:
                 raise IgnoreRequest
             # Save original request to be able to retry it in case of logout
             req_copy = request.replace(meta=deepcopy(request.meta))
-            req_copy.callback = req_copy.errback = None
             request.meta['_autologin'] = autologin_meta = {'request': req_copy}
             # TODO - it should be possible to put auth cookies into the
             # cookiejar in process_response (but also check non-splash)
