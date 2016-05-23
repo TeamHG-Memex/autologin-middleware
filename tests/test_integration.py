@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import json
 import uuid
 from six.moves.urllib.parse import urlsplit, urlunsplit
 
@@ -9,13 +10,14 @@ from scrapy.crawler import CrawlerRunner
 from scrapy.linkextractors import LinkExtractor
 from scrapy.utils.log import configure_logging
 from scrapy.utils.python import to_bytes
+from scrapy_splash import SplashRequest
 from twisted.internet import defer, reactor
 from twisted.trial.unittest import TestCase
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.util import Redirect
 
-from autologin_middleware import link_looks_like_logout
+from autologin_middleware import AutologinMiddleware, link_looks_like_logout
 from .mockserver import MockServer
 
 
@@ -289,3 +291,26 @@ class TestAutoLoginCustomHeaders(SpiderTestCase):
         spider = self.crawler.spider
         assert len(spider.visited_urls) == 2
         assert spider.visited_urls[1] == '/hidden'
+
+
+class TestAutologinRequest(SpiderTestCase):
+    settings = {
+        'SPLASH_URL': 'http://192.168.99.100:8050',
+    }
+    def test(self):
+        mw = AutologinMiddleware('http://127.0.0.1:8089', self.crawler)
+        al_request = mw._login_request(scrapy.Request('http://example.com'))
+        data = json.loads(al_request.body.decode('utf-8'))
+        assert al_request.dont_filter
+        assert al_request.meta['proxy'] is None
+        assert data['url'] == 'http://example.com'
+        assert data['settings']['USER_AGENT'] == \
+               self.crawler.settings.get('USER_AGENT')
+        assert data['settings'].get('SPLASH_URL') is None
+
+        al_request = mw._login_request(SplashRequest('http://example.com'))
+        data = json.loads(al_request.body.decode('utf-8'))
+        assert data['url'] == 'http://example.com'
+        assert data['settings']['SPLASH_URL'] == \
+               self.crawler.settings.get('SPLASH_URL')
+

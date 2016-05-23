@@ -141,6 +141,9 @@ class AutologinMiddleware:
             }
         }
         params['settings'].update(self.passed_setting)
+        if 'splash' not in request.meta:
+            # if request does not use splash, do not pass SPLASH_URL
+            params['settings'].pop('SPLASH_URL', None)
         if self.autologin_download_delay:
             params['settings']['DOWNLOAD_DELAY'] = self.autologin_download_delay
         return scrapy.Request(
