@@ -78,8 +78,14 @@ class AutologinMiddleware:
                 raise IgnoreRequest
             # Save original request to be able to retry it in case of logout
             req_copy = request.replace(meta=deepcopy(request.meta))
-            request.meta['_autologin'] = autologin_meta = {
-                'request': request_to_dict(req_copy, spider=spider)}
+            request.meta['_autologin'] = autologin_meta = {}
+            try:
+                autologin_meta['request'] = request_to_dict(
+                    req_copy, spider=spider)
+            except ValueError:
+                # Serialization failed, but it might be ok if we do not persist
+                # requests, so store the request itself here.
+                autologin_meta['request'] = req_copy
             # TODO - it should be possible to put auth cookies into the
             # cookiejar in process_response (but also check non-splash)
             if self.auth_cookies:
@@ -161,7 +167,10 @@ class AutologinMiddleware:
         """
         if request.meta.get('_autologin') and self.is_logout(response):
             autologin_meta = request.meta['_autologin']
-            retryreq = request_from_dict(autologin_meta['request'], spider)
+            if isinstance(autologin_meta['request'], dict):
+                retryreq = request_from_dict(autologin_meta['request'], spider)
+            else:
+                retryreq = autologin_meta['request'].copy()
             retryreq.dont_filter = True
             logger.debug(
                 'Logout at %s: %s', retryreq.url, _response_cookies(response))

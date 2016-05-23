@@ -326,7 +326,8 @@ class CustomParseSpider(TestSpider):
             yield self.make_request(url)
 
     def make_request(self, url):
-        return scrapy.Request(url, callback=self.custom_parse)
+        # Not serializable request on purpose, and a custom callback.
+        return scrapy.Request(url, callback=lambda r: self.custom_parse(r))
 
     def parse(self, response):
         assert False
@@ -339,7 +340,26 @@ class TestAutoLoginCustomParseSpider(TestAutologin):
     SpiderCls = CustomParseSpider
 
 
-class TestAutoLoginDiskQueue(TestAutologin):
+class StoppingSpider(TestSpider):
+    def start_requests(self):
+        self.state['was_stopped'] = False
+        for url in self.start_urls:
+            yield self.make_request(url)
+
+    def make_request(self, url):
+        return scrapy.Request(url, callback=self.parse)
+
+    def parse(self, response):
+        for item in super(StoppingSpider, self).parse(response):
+            yield item
+        if not self.state['was_stopped']:
+            self.crawler.engine.close()
+            self.state['was_stopped'] = True
+
+
+class TestAutoLoginResume(SpiderTestCase):
+    SpiderCls = StoppingSpider
+
     @property
     def settings(self):
         self.tempdir = tempfile.mkdtemp()
@@ -347,6 +367,17 @@ class TestAutoLoginDiskQueue(TestAutologin):
             'JOBDIR': self.tempdir,
             'SCHEDULER_DISK_QUEUE': 'scrapy.squeues.PickleFifoDiskQueue',
             'SCHEDULER_MEMORY_QUEUE': 'scrapy.squeues.FifoMemoryQueue',
+            'LOG_UNSERIALIZABLE_REQUESTS': True,
         }
         settings.update(TestAutologin.settings)
         return settings
+
+    @defer.inlineCallbacks
+    def test(self):
+        with MockServer(Login) as s:
+            yield self.crawler.crawl(url=s.root_url)
+            # resuming crawl
+            yield self.crawler.crawl(url=s.root_url)
+        spider = self.crawler.spider
+        assert len(spider.visited_urls) == 1
+        assert set(spider.visited_urls) == {'/hidden'}
