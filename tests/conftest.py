@@ -21,20 +21,6 @@ def base_settings():
     }
 
 
-@pytest.fixture()
+@pytest.fixture(params=[False])
 def settings(request):
     return base_settings()
-
-
-def make_crawler(SpiderCls, settings, **extra_settings):
-    settings.update(extra_settings)
-    runner = CrawlerRunner(settings)
-    return runner.create_crawler(SpiderCls)
-
-
-# make the module importable without running py.test
-try:
-    inlineCallbacks = pytest.inlineCallbacks
-except AttributeError:
-    from twisted.internet import defer
-    inlineCallbacks = defer.inlineCallbacks
