@@ -191,7 +191,7 @@ class LoginWithLogout(Login):
             return NOT_DONE_YET
 
         def _delayedRender(self, request):
-            request.write(html('you have been logged out').encode())
+            request.write(Redirect(b'/').render(request))
             request.finish()
 
     def __init__(self):

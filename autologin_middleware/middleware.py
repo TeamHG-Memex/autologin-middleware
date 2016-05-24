@@ -198,11 +198,15 @@ class AutologinMiddleware:
 
     def is_logout(self, response):
         response_cookies = _response_cookies(response)
-        if self.auth_cookies and response_cookies is not None:
+        if self.auth_cookies and response_cookies is not None and \
+                self.is_redirect(response):
             auth_keys = {c['name'] for c in self.auth_cookies if c['value']}
             response_keys = {
                 name for name, value in response_cookies.items() if value}
             return bool(auth_keys - response_keys)
+
+    def is_redirect(self, response):
+        return response.status == 302
 
 
 def _response_cookies(response):
