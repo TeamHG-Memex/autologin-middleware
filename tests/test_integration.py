@@ -15,7 +15,8 @@ from scrapy_splash import SplashRequest
 from autologin_middleware import AutologinMiddleware, link_looks_like_logout
 from .mockserver import MockServer
 from .conftest import base_settings
-from .servers import Login, LoginWithLogout, LoginIfUserAgentOk
+from .servers import Login, LoginWithLogout, LoginIfUserAgentOk, \
+    LoginWithContentAfterLogout
 
 
 configure_logging()
@@ -196,3 +197,19 @@ def test_resume(settings):
     spider = crawler.spider
     assert len(spider.visited_urls) == 1
     assert set(spider.visited_urls) == {'/hidden'}
+
+
+@inlineCallbacks
+def test_disable_logout(settings):
+    crawler = make_crawler(settings, **AL_SETTINGS)
+    with MockServer(LoginWithContentAfterLogout) as s:
+        yield crawler.crawl(url=s.root_url)
+    spider = crawler.spider
+    assert set(spider.visited_urls) == {'/', '/hidden'}
+    crawler = make_crawler(
+        settings, AUTOLOGIN_CHECK_LOGOUT=False, **AL_SETTINGS)
+    with MockServer(LoginWithContentAfterLogout) as s:
+        yield crawler.crawl(url=s.root_url)
+    spider = crawler.spider
+    spider_urls = set(spider.visited_urls)
+    assert set(spider.visited_urls) == {'/', '/hidden', '/target'}
