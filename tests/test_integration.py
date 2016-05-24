@@ -107,7 +107,7 @@ def is_authenticated(request):
         return False
 
 
-def authenticated_text(content, delay=0):
+def authenticated_text(content, delay=0.0):
     class R(Resource):
         def render_GET(self, request):
             reactor.callLater(delay, self._delayedRender, request)
@@ -178,7 +178,7 @@ class LoginIfUserAgentOk(Login):
 class LoginWithLogout(Login):
     class _Logout(Resource):
         isLeaf = True
-        def __init__(self, delay=0):
+        def __init__(self, delay=0.0):
             Resource.__init__(self)
             self.delay = delay
 
