@@ -12,7 +12,7 @@ from scrapy.linkextractors import LinkExtractor
 from scrapy.utils.log import configure_logging
 from scrapy.utils.python import to_bytes
 from scrapy_splash import SplashRequest
-from twisted.internet import defer, reactor
+from twisted.internet import reactor
 from twisted.trial.unittest import TestCase
 from twisted.web.resource import Resource
 from twisted.web.server import NOT_DONE_YET
@@ -20,6 +20,7 @@ from twisted.web.util import Redirect
 
 from autologin_middleware import AutologinMiddleware, link_looks_like_logout
 from .mockserver import MockServer
+from .conftest import inlineCallbacks, make_crawler, base_settings
 
 
 configure_logging()
@@ -53,29 +54,6 @@ class TestSpider(scrapy.Spider):
                 response.meta.get('autologin_active'):
             return False
         return link_looks_like_logout(link)
-
-
-class SpiderTestCase(TestCase):
-    settings = {}
-    SpiderCls = TestSpider
-
-    def setUp(self):
-        settings = {
-            'AUTOLOGIN_URL': 'http://127.0.0.1:8089',
-            'AUTOLOGIN_ENABLED': True,
-            # Higher fixed value to make the test more reliable
-            'AUTOLOGIN_MAX_LOGOUT_COUNT': 8,
-            'COOKIES_ENABLED': True,
-            'COOKIES_DEBUG': True,
-            'DOWNLOADER_MIDDLEWARES': {
-                'autologin_middleware.AutologinMiddleware': 605,
-                'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': None,
-                'autologin_middleware.ExposeCookiesMiddleware': 700,
-            }
-        }
-        settings.update(self.settings)
-        runner = CrawlerRunner(settings)
-        self.crawler = runner.create_crawler(self.SpiderCls)
 
 
 def html(content):
@@ -215,109 +193,92 @@ class LoginWithLogout(Login):
         self.putChild(b'slow', authenticated_text(html('slow'), delay=1.0)())
 
 
-class TestSkip(SpiderTestCase):
-    settings = {'_AUTOLOGIN_FORCE_SKIP': True}
+@inlineCallbacks
+def test_skip(settings):
+    crawler = make_crawler(TestSpider, settings, _AUTOLOGIN_FORCE_SKIP=True)
+    with MockServer(Login) as s:
+        yield crawler.crawl(url=s.root_url)
+    spider = crawler.spider
+    assert set(spider.visited_urls) == {'/', '/login'}
 
-    @defer.inlineCallbacks
-    def test(self):
-        with MockServer(Login) as s:
-            yield self.crawler.crawl(url=s.root_url)
-        spider = self.crawler.spider
-        assert set(spider.visited_urls) == {'/', '/login'}
+
+AL_SETTINGS = {
+    'AUTOLOGIN_USERNAME': 'admin',
+    'AUTOLOGIN_PASSWORD': 'secret',
+    'AUTOLOGIN_LOGIN_URL': '/login',
+    'AUTOLOGIN_LOGOUT_URL': 'action=l0gout',
+    'AUTOLOGIN_DOWNLOAD_DELAY': 0.01,
+}
 
 
 @flaky
-class TestAutologin(SpiderTestCase):
-    settings = {
-        'AUTOLOGIN_USERNAME': 'admin',
-        'AUTOLOGIN_PASSWORD': 'secret',
-        'AUTOLOGIN_LOGIN_URL': '/login',
-        'AUTOLOGIN_LOGOUT_URL': 'action=l0gout',
-        'AUTOLOGIN_DOWNLOAD_DELAY': 0.01,
-    }
-
-    @defer.inlineCallbacks
-    def test_login(self):
-        """ No logout links, just one page after login.
-        """
-        with MockServer(Login) as s:
-            yield self.crawler.crawl(url=s.root_url)
-        spider = self.crawler.spider
-        assert len(spider.visited_urls) == 2
-        assert set(spider.visited_urls) == {'/', '/hidden'}
-
-    @defer.inlineCallbacks
-    def test_login_with_logout(self):
-        """ Login with logout.
-        """
-        with MockServer(LoginWithLogout) as s:
-            yield self.crawler.crawl(url=s.root_url)
-        spider = self.crawler.spider
-        mandatory_urls = {'/', '/hidden', '/one', '/two', '/three', '/slow'}
-        spider_urls = set(spider.visited_urls)
-        assert mandatory_urls.difference(spider_urls) == set()
-        assert spider_urls.difference(
-            mandatory_urls | {'/l0gout1', '/l0gout2'}) == set()
+@inlineCallbacks
+def test_login(settings, SpiderCls=TestSpider):
+    """ No logout links, just one page after login.
+    """
+    crawler = make_crawler(SpiderCls, settings, **AL_SETTINGS)
+    with MockServer(Login) as s:
+        yield crawler.crawl(url=s.root_url)
+    spider = crawler.spider
+    assert len(spider.visited_urls) == 2
+    assert set(spider.visited_urls) == {'/', '/hidden'}
 
 
-class TestPending(SpiderTestCase):
-    settings = {
-        'AUTOLOGIN_USERNAME': 'admin',
-        'AUTOLOGIN_PASSWORD': 'secret',
-        'AUTOLOGIN_LOGIN_URL': '/login',
-        'AUTOLOGIN_LOGOUT_URL': 'action=l0gout',
-        'AUTOLOGIN_DOWNLOAD_DELAY': 0.01,
-        '_AUTOLOGIN_N_PEND': 3,
-    }
-
-    @defer.inlineCallbacks
-    def test_login(self):
-        with MockServer(Login) as s:
-            root_url = s.root_url
-            yield self.crawler.crawl(url=root_url)
-        spider = self.crawler.spider
-        assert len(spider.visited_urls) == 2
-        assert set(spider.visited_urls) == {'/', '/hidden'}
+@flaky
+@inlineCallbacks
+def test_login_with_logout(settings):
+    """ Login with logout.
+    """
+    crawler = make_crawler(TestSpider, settings, **AL_SETTINGS)
+    with MockServer(LoginWithLogout) as s:
+        yield crawler.crawl(url=s.root_url)
+    spider = crawler.spider
+    mandatory_urls = {'/', '/hidden', '/one', '/two', '/three', '/slow'}
+    spider_urls = set(spider.visited_urls)
+    assert mandatory_urls.difference(spider_urls) == set()
+    assert spider_urls.difference(
+        mandatory_urls | {'/l0gout1', '/l0gout2'}) == set()
 
 
-class TestAutoLoginCustomHeaders(SpiderTestCase):
-    settings = {
-        'AUTOLOGIN_USERNAME': 'admin',
-        'AUTOLOGIN_PASSWORD': 'secret',
-        'AUTOLOGIN_LOGIN_URL': '/login',
-        'USER_AGENT': 'MyCustomAgent',
-        'AUTOLOGIN_DOWNLOAD_DELAY': 0.01,
-    }
-
-    @defer.inlineCallbacks
-    def test_login(self):
-        with MockServer(LoginIfUserAgentOk) as s:
-            yield self.crawler.crawl(url=s.root_url)
-        spider = self.crawler.spider
-        assert len(spider.visited_urls) == 2
-        assert spider.visited_urls[1] == '/hidden'
+@inlineCallbacks
+def test_pending(settings):
+    crawler = make_crawler(
+        TestSpider, settings, _AUTOLOGIN_N_PEND=3, **AL_SETTINGS)
+    with MockServer(Login) as s:
+        root_url = s.root_url
+        yield crawler.crawl(url=root_url)
+    spider = crawler.spider
+    assert len(spider.visited_urls) == 2
+    assert set(spider.visited_urls) == {'/', '/hidden'}
 
 
-class TestAutologinRequest(SpiderTestCase):
-    settings = {
-        'SPLASH_URL': 'http://192.168.99.100:8050',
-    }
-    def test(self):
-        mw = AutologinMiddleware('http://127.0.0.1:8089', self.crawler)
-        al_request = mw._login_request(scrapy.Request('http://example.com'))
-        data = json.loads(al_request.body.decode('utf-8'))
-        assert al_request.dont_filter
-        assert al_request.meta['proxy'] is None
-        assert data['url'] == 'http://example.com'
-        assert data['settings']['USER_AGENT'] == \
-               self.crawler.settings.get('USER_AGENT')
-        assert data['settings'].get('SPLASH_URL') is None
+@inlineCallbacks
+def test_custom_headers(settings):
+    crawler = make_crawler(
+        TestSpider, settings, USER_AGENT='MyCustomAgent', **AL_SETTINGS)
+    with MockServer(LoginIfUserAgentOk) as s:
+        yield crawler.crawl(url=s.root_url)
+    spider = crawler.spider
+    assert len(spider.visited_urls) == 2
+    assert spider.visited_urls[1] == '/hidden'
 
-        al_request = mw._login_request(SplashRequest('http://example.com'))
-        data = json.loads(al_request.body.decode('utf-8'))
-        assert data['url'] == 'http://example.com'
-        assert data['settings']['SPLASH_URL'] == \
-               self.crawler.settings.get('SPLASH_URL')
+
+def test_autologin_request():
+    crawler = make_crawler(TestSpider, base_settings(),
+                           SPLASH_URL='http://192.168.99.100:8050')
+    mw = AutologinMiddleware('http://127.0.0.1:8089', crawler)
+    al_request = mw._login_request(scrapy.Request('http://example.com'))
+    data = json.loads(al_request.body.decode('utf-8'))
+    assert al_request.dont_filter
+    assert al_request.meta['proxy'] is None
+    assert data['url'] == 'http://example.com'
+    assert data['settings']['USER_AGENT'] == crawler.settings.get('USER_AGENT')
+    assert data['settings'].get('SPLASH_URL') is None
+
+    al_request = mw._login_request(SplashRequest('http://example.com'))
+    data = json.loads(al_request.body.decode('utf-8'))
+    assert data['url'] == 'http://example.com'
+    assert data['settings']['SPLASH_URL'] == crawler.settings.get('SPLASH_URL')
 
 
 class CustomParseSpider(TestSpider):
@@ -336,8 +297,8 @@ class CustomParseSpider(TestSpider):
         return super(CustomParseSpider, self).parse(response)
 
 
-class TestAutoLoginCustomParseSpider(TestAutologin):
-    SpiderCls = CustomParseSpider
+def test_custom_parse(settings):
+    return test_login(settings, SpiderCls=CustomParseSpider)
 
 
 class StoppingSpider(TestSpider):
@@ -357,27 +318,19 @@ class StoppingSpider(TestSpider):
             self.crawler.stop()
 
 
-class TestAutoLoginResume(SpiderTestCase):
-    SpiderCls = StoppingSpider
-
-    @property
-    def settings(self):
-        self.tempdir = tempfile.mkdtemp()
-        settings = {
-            'JOBDIR': self.tempdir,
-            'SCHEDULER_DISK_QUEUE': 'scrapy.squeues.PickleFifoDiskQueue',
-            'SCHEDULER_MEMORY_QUEUE': 'scrapy.squeues.FifoMemoryQueue',
-            'LOG_UNSERIALIZABLE_REQUESTS': True,
-        }
-        settings.update(TestAutologin.settings)
-        return settings
-
-    @defer.inlineCallbacks
-    def test(self):
-        with MockServer(Login) as s:
-            yield self.crawler.crawl(url=s.root_url)
-            # resuming crawl
-            yield self.crawler.crawl(url=s.root_url)
-        spider = self.crawler.spider
-        assert len(spider.visited_urls) == 1
-        assert set(spider.visited_urls) == {'/hidden'}
+@inlineCallbacks
+def test_resume(settings):
+    crawler = make_crawler(
+        StoppingSpider, settings,
+        JOBDIR=tempfile.mkdtemp(),
+        SCHEDULER_DISK_QUEUE='scrapy.squeues.PickleFifoDiskQueue',
+        SCHEDULER_MEMORY_QUEUE='scrapy.squeues.FifoMemoryQueue',
+        LOG_UNSERIALIZABLE_REQUESTS=True,
+        **AL_SETTINGS)
+    with MockServer(Login) as s:
+        yield crawler.crawl(url=s.root_url)
+        # resuming crawl
+        yield crawler.crawl(url=s.root_url)
+    spider = crawler.spider
+    assert len(spider.visited_urls) == 1
+    assert set(spider.visited_urls) == {'/hidden'}
