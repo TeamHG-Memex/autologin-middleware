@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import json
 import uuid
 from six.moves.urllib.parse import urlsplit, urlunsplit
+import tempfile
 
 from flaky import flaky
 import scrapy
@@ -42,7 +43,10 @@ class TestSpider(scrapy.Spider):
                 self.link_extractor.extract_links(response)
                 if not self._looks_like_logout(link, response)}
         for url in urls:
-            yield scrapy.Request(url, callback=self.parse)
+            yield self.make_request(url)
+
+    def make_request(self, url):
+        return scrapy.Request(url, callback=self.parse)
 
     def _looks_like_logout(self, link, response):
         if not self.settings.getbool('AUTOLOGIN_ENABLED') or not \
@@ -53,6 +57,7 @@ class TestSpider(scrapy.Spider):
 
 class SpiderTestCase(TestCase):
     settings = {}
+    SpiderCls = TestSpider
 
     def setUp(self):
         settings = {
@@ -70,7 +75,7 @@ class SpiderTestCase(TestCase):
         }
         settings.update(self.settings)
         runner = CrawlerRunner(settings)
-        self.crawler = runner.create_crawler(TestSpider)
+        self.crawler = runner.create_crawler(self.SpiderCls)
 
 
 def html(content):
@@ -314,3 +319,65 @@ class TestAutologinRequest(SpiderTestCase):
         assert data['settings']['SPLASH_URL'] == \
                self.crawler.settings.get('SPLASH_URL')
 
+
+class CustomParseSpider(TestSpider):
+    def start_requests(self):
+        for url in self.start_urls:
+            yield self.make_request(url)
+
+    def make_request(self, url):
+        # Not serializable request on purpose, and a custom callback.
+        return scrapy.Request(url, callback=lambda r: self.custom_parse(r))
+
+    def parse(self, response):
+        assert False
+
+    def custom_parse(self, response):
+        return super(CustomParseSpider, self).parse(response)
+
+
+class TestAutoLoginCustomParseSpider(TestAutologin):
+    SpiderCls = CustomParseSpider
+
+
+class StoppingSpider(TestSpider):
+    def start_requests(self):
+        self.state['was_stopped'] = False
+        for url in self.start_urls:
+            yield self.make_request(url)
+
+    def make_request(self, url):
+        return scrapy.Request(url, callback=self.parse)
+
+    def parse(self, response):
+        for item in super(StoppingSpider, self).parse(response):
+            yield item
+        if not self.state['was_stopped']:
+            self.state['was_stopped'] = True
+            self.crawler.stop()
+
+
+class TestAutoLoginResume(SpiderTestCase):
+    SpiderCls = StoppingSpider
+
+    @property
+    def settings(self):
+        self.tempdir = tempfile.mkdtemp()
+        settings = {
+            'JOBDIR': self.tempdir,
+            'SCHEDULER_DISK_QUEUE': 'scrapy.squeues.PickleFifoDiskQueue',
+            'SCHEDULER_MEMORY_QUEUE': 'scrapy.squeues.FifoMemoryQueue',
+            'LOG_UNSERIALIZABLE_REQUESTS': True,
+        }
+        settings.update(TestAutologin.settings)
+        return settings
+
+    @defer.inlineCallbacks
+    def test(self):
+        with MockServer(Login) as s:
+            yield self.crawler.crawl(url=s.root_url)
+            # resuming crawl
+            yield self.crawler.crawl(url=s.root_url)
+        spider = self.crawler.spider
+        assert len(spider.visited_urls) == 1
+        assert set(spider.visited_urls) == {'/hidden'}
