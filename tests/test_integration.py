@@ -353,8 +353,8 @@ class StoppingSpider(TestSpider):
         for item in super(StoppingSpider, self).parse(response):
             yield item
         if not self.state['was_stopped']:
-            self.crawler.engine.close()
             self.state['was_stopped'] = True
+            self.crawler.stop()
 
 
 class TestAutoLoginResume(SpiderTestCase):
