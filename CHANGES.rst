@@ -3,6 +3,12 @@ Changes
 
 .. contents::
 
+0.1.2 (2016-05-25)
+------------------
+
+* ``AUTOLOGIN_CHECK_LOGOUT`` setting to disable logout detection.
+* An issue with erasing callbacks for retried requests was fixed.
+
 
 0.1.1 (2016-05-20)
 ------------------

@@ -8,7 +8,7 @@ def read(fname):
 
 setup(
     name='autologin-middleware',
-    version='0.1.1',
+    version='0.1.2',
     description='A Scrapy middleware to use with autologin',
     license='MIT',
     author='Konstantin Lopuhin, Mikhail Korobov',
