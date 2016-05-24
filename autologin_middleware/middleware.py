@@ -38,6 +38,7 @@ class AutologinMiddleware:
         self.extra_js = s.get('AUTOLOGIN_EXTRA_JS')
         self.autologin_download_delay = s.get('AUTOLOGIN_DOWNLOAD_DELAY')
         self.logout_url = s.get('AUTOLOGIN_LOGOUT_URL')
+        self.check_logout = s.getbool('AUTOLOGIN_CHECK_LOGOUT', True)
         # _force_skip and _n_pend and for testing only
         self._force_skip = s.getbool('_AUTOLOGIN_FORCE_SKIP')
         self._n_pend = s.getint('_AUTOLOGIN_N_PEND')
@@ -197,12 +198,15 @@ class AutologinMiddleware:
         returnValue(response)
 
     def is_logout(self, response):
+        if not self.check_logout:
+            return False
         response_cookies = _response_cookies(response)
         if self.auth_cookies and response_cookies is not None:
             auth_keys = {c['name'] for c in self.auth_cookies if c['value']}
             response_keys = {
                 name for name, value in response_cookies.items() if value}
             return bool(auth_keys - response_keys)
+        return False
 
 
 def _response_cookies(response):

@@ -61,6 +61,14 @@ There are some optional settings:
 - ``AUTOLOGIN_COOKIES``: pass auth cookies after manual login
   (format is ``name=value; name2=value2``).
 - ``AUTOLOGIN_LOGOUT_URL``: pass url substring to avoid.
+- ``AUTOLOGIN_CHECK_LOGOUT``: set to ``False`` in order to disable automatic
+  logout detection: it remembers cookies obtained during login and
+  checks them on each response to see if any disappeared. This can be
+  problematic for sites that set a lot of cookies on login,
+  so this is an option to disable it.
+  If you disable it, you must rely on avoiding logout links with
+  ``link_looks_like_logout`` (see below), or setting a custom
+  ``AUTOLOGIN_LOGOUT_URL``.
 - ``AUTOLOGIN_USERNAME``, ``AUTOLOGIN_PASSWORD``, ``AUTOLOGIN_LOGIN_URL``,
   ``AUTOLOGIN_EXTRA_JS`` are passed to autologin and override values
   from stored credentials.  ``AUTOLOGIN_LOGIN_URL`` is a relative url,
