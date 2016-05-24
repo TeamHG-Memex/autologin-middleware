@@ -76,10 +76,10 @@ AL_SETTINGS = {
 
 
 @inlineCallbacks
-def test_login(settings, spider_cls=TestSpider):
+def test_login(settings):
     """ No logout links, just one page after login.
     """
-    crawler = make_crawler(settings, spider_cls=spider_cls, **AL_SETTINGS)
+    crawler = make_crawler(settings, **AL_SETTINGS)
     with MockServer(Login) as s:
         yield crawler.crawl(url=s.root_url)
     spider = crawler.spider
@@ -89,10 +89,10 @@ def test_login(settings, spider_cls=TestSpider):
 
 @flaky
 @inlineCallbacks
-def test_login_with_logout(settings):
+def test_login_with_logout(settings, spider_cls=TestSpider):
     """ Login with logout.
     """
-    crawler = make_crawler(settings, **AL_SETTINGS)
+    crawler = make_crawler(settings, spider_cls=spider_cls, **AL_SETTINGS)
     with MockServer(LoginWithLogout) as s:
         yield crawler.crawl(url=s.root_url)
     spider = crawler.spider
@@ -155,11 +155,12 @@ class CustomParseSpider(TestSpider):
         assert False
 
     def custom_parse(self, response):
+        print('#' * 100)
         return super(CustomParseSpider, self).parse(response)
 
 
 def test_custom_parse(settings):
-    return test_login(settings, spider_cls=CustomParseSpider)
+    return test_login_with_logout(settings, spider_cls=CustomParseSpider)
 
 
 class StoppingSpider(TestSpider):
