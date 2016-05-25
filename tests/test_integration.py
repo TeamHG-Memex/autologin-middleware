@@ -170,6 +170,10 @@ def test_custom_parse(settings):
 
 
 class StoppingSpider(TestSpider):
+    def __init__(self, *args, **kwargs):
+        super(StoppingSpider, self).__init__(*args, **kwargs)
+        self.state = {}
+
     def start_requests(self):
         self.state['was_stopped'] = False
         return super(StoppingSpider, self).start_requests()
@@ -177,7 +181,7 @@ class StoppingSpider(TestSpider):
     def parse(self, response):
         for item in super(StoppingSpider, self).parse(response):
             yield item
-        if not self.state['was_stopped']:
+        if not self.state.get('was_stopped'):
             self.state['was_stopped'] = True
             self.crawler.stop()
 
