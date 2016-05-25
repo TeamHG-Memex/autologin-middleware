@@ -17,10 +17,27 @@ This is a a Scrapy middleware that uses
 `autologin <https://github.com/TeamHG-Memex/autologin>`_ http-api
 to maintain a logged-in state for a scrapy spider.
 
+Autologin middleware uses autologin to make all requests while being
+logged in. It uses autologin to get cookies, detects logouts and tries
+to avoid them in the future. A single authorization domain for the spider
+is assumed. Autologin middleware also puts ``autologin_active`` into
+``request.meta``, which is ``True`` only if we are logged in
+(and to ``False`` if domain is skipped or login failed).
+If requests are made via splash (and ``SPLASH_URL`` is set),
+autologin middleware passes it to autologin,
+and this splash instance is also used to obtain login cookies.
+
+Installation
+------------
+
 It works on python 2.7 and python 3, and requires at least scrapy 1.1.
 Install with pip::
 
     pip install autologin-middleware
+
+
+Configuration
+-------------
 
 Include the autologin middleware into the project settings
 and specify autologin url::
@@ -47,16 +64,6 @@ Cookie support is also required. There are currently several options:
   sets ``response.cookiejar`` like scrapy-splash middleware,
   or exposes them in ``response.flags`` like ``ExposeCookiesMiddleware``.
 
-Autologin middleware uses autologin to make all requests while being
-logged in. It uses autologin to get cookies, detects logouts and tries
-to avoid them in the future. A single authorization domain for the spider
-is assumed. Autologin middleware also puts ``autologin_active`` into
-``request.meta``, which is ``True`` only if we are logged in
-(and to ``False`` if domain is skipped or login failed).
-If requests are made via splash (and ``SPLASH_URL`` is set),
-autologin middleware passes it to autologin,
-and this splash instance is also used to obtain login cookies.
-
 There are some optional settings:
 
 - ``AUTOLOGIN_COOKIES``: pass auth cookies after manual login
@@ -81,17 +88,55 @@ Autologin middleware passes the following settings to the autologin:
 ``SPLASH_URL``, ``USER_AGENT``, ``HTTP_PROXY``, ``HTTPS_PROXY``, so they
 are used for autologin requests.
 
+
+Avoiding logouts
+----------------
+
 There is also an utility ``autologin_middleware.link_looks_like_logout``
 for checking if a links looks like a logout link: you can use it in the
 spider to avoid logout links. Logouts are handled
-by the autologin middleware anyway,
+by the autologin middleware by default
+(unless ``AUTOLOGIN_CHECK_LOGOUT`` is ``False``),
 but avoiding logout links can be beneficial for two reasons:
 
 - no time is waster retrying requests that were logged out
 - in some cases, logout urls can be unique, and the spider will be logging
   out continuously (for example, ``/logout?sid=UNIQUE_ID``).
 
-Check ``tests.utils.TestSpider`` for an example of a minimal spider
-that uses ``link_looks_like_logout``, and an example of project settings.
+
+Usage with Splash
+-----------------
+
+Autologin middleware supports splash via
+`scrapy-splash <https://github.com/scrapy-plugins/scrapy-splash>`_,
+but correctly settings everything up can be tricky.
+
+First, you need to specify the following settings
+(check scrapy-splash docs for more details)::
+
+    SPLASH_URL = 'http://127.0.0.1:8050'
+    SPIDER_MIDDLEWARES = {
+        'scrapy_splash.SplashDeduplicateArgsMiddleware': 100,
+    }
+    DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'
+    DOWNLOADER_MIDDLEWARES = {
+        'autologin_middleware.AutologinMiddleware': 605,
+        'scrapy_splash.SplashCookiesMiddleware': 723,
+        'scrapy_splash.SplashMiddleware': 725,
+        'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
+    }
+
+Second, you need to make requests to splash and pass cookies with
+``splash:init_cookies(splash.args.cookies)``, and return them in the
+``cookies`` field using ``splash:get_cookies()``. If you are already using
+a splash script (``execute`` endpoint), modify your script accordingly.
+But if you just want to crawl using splash, you can use
+``autologin_middleware.splash.splash_request`` instead of ``scrapy.Request``.
+It has a minimal lua script that passes cookies and returns html, so you won't
+need to change anything else in you spider.
+
+
+License
+-------
 
 License is MIT.
