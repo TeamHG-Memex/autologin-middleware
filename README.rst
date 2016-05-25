@@ -17,6 +17,7 @@ This is a a Scrapy middleware that uses
 `autologin <https://github.com/TeamHG-Memex/autologin>`_ http-api
 to maintain a logged-in state for a scrapy spider.
 
+It works on python 2.7 and python 3, and requires at least scrapy 1.1.
 Install with pip::
 
     pip install autologin-middleware
