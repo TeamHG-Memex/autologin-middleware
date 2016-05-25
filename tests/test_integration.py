@@ -13,6 +13,7 @@ from scrapy.utils.log import configure_logging
 from scrapy_splash import SplashRequest
 
 from autologin_middleware import AutologinMiddleware, link_looks_like_logout
+from autologin_middleware.splash import splash_request
 from .mockserver import MockServer
 from .conftest import base_settings
 from .servers import Login, LoginWithLogout, LoginIfUserAgentOk, \
@@ -38,6 +39,10 @@ class TestSpider(scrapy.Spider):
         self.visited_urls = []
         super(TestSpider, self).__init__()
 
+    def start_requests(self):
+        for url in self.start_urls:
+            yield self.make_request(url)
+
     def parse(self, response):
         p = urlsplit(response.url)
         self.visited_urls.append(
@@ -49,7 +54,12 @@ class TestSpider(scrapy.Spider):
             yield self.make_request(url)
 
     def make_request(self, url):
-        return scrapy.Request(url, callback=self.parse)
+        req_fn = splash_request if self.settings.get('SPLASH_URL') else \
+                 scrapy.Request
+        return req_fn(url, callback=self.request_callback())
+
+    def request_callback(self):
+        return self.parse
 
     def _looks_like_logout(self, link, response):
         if not self.settings.getbool('AUTOLOGIN_ENABLED') or not \
@@ -144,19 +154,14 @@ def test_autologin_request():
 
 
 class CustomParseSpider(TestSpider):
-    def start_requests(self):
-        for url in self.start_urls:
-            yield self.make_request(url)
-
-    def make_request(self, url):
+    def request_callback(self):
         # Not serializable request on purpose, and a custom callback.
-        return scrapy.Request(url, callback=lambda r: self.custom_parse(r))
+        return lambda r: self.custom_parse(r)
 
     def parse(self, response):
         assert False
 
     def custom_parse(self, response):
-        print('#' * 100)
         return super(CustomParseSpider, self).parse(response)
 
 
@@ -165,18 +170,18 @@ def test_custom_parse(settings):
 
 
 class StoppingSpider(TestSpider):
+    def __init__(self, *args, **kwargs):
+        super(StoppingSpider, self).__init__(*args, **kwargs)
+        self.state = {}
+
     def start_requests(self):
         self.state['was_stopped'] = False
-        for url in self.start_urls:
-            yield self.make_request(url)
-
-    def make_request(self, url):
-        return scrapy.Request(url, callback=self.parse)
+        return super(StoppingSpider, self).start_requests()
 
     def parse(self, response):
         for item in super(StoppingSpider, self).parse(response):
             yield item
-        if not self.state['was_stopped']:
+        if not self.state.get('was_stopped'):
             self.state['was_stopped'] = True
             self.crawler.stop()
 

@@ -1,19 +1,21 @@
 language: python
 python: 3.5
-sudo: false
+sudo: required
 
 branches:
     only:
         - master
         - /^\d\.\d+$/
 
+services:
+    - docker
+
 before_install:
+    - docker run -d -p 8050:8050 scrapinghub/splash:master
     # Autologin
     - pip install -U pip wheel
-    - git clone https://github.com/TeamHG-Memex/autologin.git
-    - pip install -r autologin/requirements.txt --no-binary Formasaurus
-    - python -c "import formasaurus; formasaurus.extract_forms('a')"
-    - cd autologin && python setup.py install && cd -
+    - pip install git+https://github.com/TeamHG-Memex/autologin.git
+    - formasaurus init
     - autologin-http-api &
 
 install:
