@@ -18,6 +18,7 @@ function main(splash)
     if #entries > 0 then
         local last_response = entries[#entries].response
         return {
+            url=splash:url(),
             headers=last_response.headers,
             cookies=splash:get_cookies(),
             html=splash:html(),
