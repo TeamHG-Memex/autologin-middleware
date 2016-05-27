@@ -149,8 +149,9 @@ Run tests with tox::
 
     tox
 
-When using Docker to run Splash on On OS X and Windows, it will start on
-a non-default address, so you need to specify it when running tests::
+When using Docker to run Splash on OS X and Windows, it will start on
+a non-default address, so you need to specify it when running tests,
+for example::
 
     SPLASH_URL=http://192.168.99.100:8050 tox
 
