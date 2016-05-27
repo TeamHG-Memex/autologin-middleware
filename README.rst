@@ -23,7 +23,8 @@ to avoid them in the future. A single authorization domain for the spider
 is assumed. Autologin middleware also puts ``autologin_active`` into
 ``request.meta``, which is ``True`` only if we are logged in
 (and to ``False`` if domain is skipped or login failed).
-If requests are made via splash (and ``SPLASH_URL`` is set),
+If requests are made via `splash <http://splash.readthedocs.org>`_
+(and ``SPLASH_URL`` is set),
 autologin middleware passes it to autologin,
 and this splash instance is also used to obtain login cookies.
 
@@ -134,6 +135,24 @@ But if you just want to crawl using splash, you can use
 ``autologin_middleware.splash.splash_request`` instead of ``scrapy.Request``.
 It has a minimal lua script that passes cookies and returns html, so you won't
 need to change anything else in you spider.
+
+
+Development
+-----------
+
+You need to start ``autologin-http-api`` (from
+`autologin <https://github.com/TeamHG-Memex/autologin>`_),
+and `splash <http://splash.readthedocs.org>`_ (the easiest option is to run
+``docker run -p 8050:8050 scrapinghub/splash``).
+
+Run tests with tox::
+
+    tox
+
+When using Docker to run Splash on On OS X and Windows, it will start on
+a non-default address, so you need to specify it when running tests::
+
+    SPLASH_URL=http://192.168.99.100:8050 tox
 
 
 License
