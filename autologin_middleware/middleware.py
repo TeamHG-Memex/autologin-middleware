@@ -74,7 +74,9 @@ class AutologinMiddleware:
             returnValue(None)
         elif self.logged_in:
             request.meta['autologin_active'] = True
-            if self.logout_url and self.logout_url in request.url:
+            logout_url = request.meta.get(
+                'autologin_logout_url', self.logout_url)
+            if logout_url and logout_url in request.url:
                 logger.debug('Ignoring logout request %s', request.url)
                 raise IgnoreRequest
             # Save original request to be able to retry it in case of logout
@@ -138,12 +140,14 @@ class AutologinMiddleware:
     def _login_request(self, request):
         logger.debug('Attempting login at %s', request.url)
         autologin_endpoint = urljoin(self.autologin_url, '/login-cookies')
+        meta = request.meta
+        login_url = meta.get('autologin_login_url', self.login_url)
         params = {
-            'url': urljoin(request.url, self.login_url)
-                   if self.login_url else request.url,
-            'username': self.username,
-            'password': self.password,
-            'extra_js': self.extra_js,
+            'url': urljoin(request.url, login_url)
+                   if login_url else request.url,
+            'username': meta.get('autologin_username', self.username),
+            'password': meta.get('autologin_password', self.password),
+            'extra_js': meta.get('autologin_extra_js', self.extra_js),
             'settings': {
                 'ROBOTSTXT_OBEY': False,
             }

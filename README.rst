@@ -85,10 +85,14 @@ There are some optional settings:
   ``AUTOLOGIN_EXTRA_JS`` is required only if you want to use the ``extra_js``
   feature of the autologin.
 
+It is also possible to override some settings per-request via corresponding
+lower-case keys in ``request.meta``: ``autologin_username``,
+``autologin_password``, ``autologin_extra_js``, ``autologin_login_url`` and
+``autologin_logout_url``.
+
 Autologin middleware passes the following settings to the autologin:
 ``SPLASH_URL``, ``USER_AGENT``, ``HTTP_PROXY``, ``HTTPS_PROXY``, so they
 are used for autologin requests.
-
 
 Avoiding logouts
 ----------------

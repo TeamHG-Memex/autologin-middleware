@@ -87,10 +87,30 @@ AL_SETTINGS = {
 
 
 @inlineCallbacks
-def test_login(settings):
+def test_login(settings, extra_settings=None):
     """ No logout links, just one page after login.
     """
     crawler = make_crawler(settings, **AL_SETTINGS)
+    with MockServer(Login) as s:
+        yield crawler.crawl(url=s.root_url)
+    spider = crawler.spider
+    assert len(spider.visited_urls) == 2
+    assert set(spider.visited_urls) == {'/', '/hidden'}
+
+
+class PassMetaSpider(TestSpider):
+    def make_request(self, url):
+        request = super(PassMetaSpider, self).make_request(url)
+        request.meta.update({key: AL_SETTINGS[key.upper()] for key in [
+            'autologin_username', 'autologin_password',
+            'autologin_login_url', 'autologin_logout_url']})
+        return request
+
+
+@inlineCallbacks
+def test_pass_via_meta(settings):
+    crawler = make_crawler(settings, spider_cls=PassMetaSpider,
+                           AUTOLOGIN_DOWNLOAD_DELAY=0.01)
     with MockServer(Login) as s:
         yield crawler.crawl(url=s.root_url)
     spider = crawler.spider
