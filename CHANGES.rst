@@ -3,6 +3,14 @@ Changes
 
 .. contents::
 
+0.1.3 (2016-06-06)
+------------------
+
+* Override ``AUTOLOGIN_USERNAME``, ``AUTOLOGIN_PASSWORD``,
+  ``AUTOLOGIN_EXTRA_JS``, ``AUTOLOGIN_LOGIN_URL`` and
+  ``AUTOLOGIN_LOGOUT_URL`` via lower-case keys in ``request.meta``.
+
+
 0.1.2 (2016-05-25)
 ------------------
 
