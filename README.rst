@@ -121,6 +121,10 @@ if we made requests to autologin while processing this request.
 You might want to use the ``"status"`` field of the autologin response
 to do some bookkeeping.
 
+Middleware also always puts ``"autologin_active"`` into ``response.meta``,
+which is ``True`` only if we are logged in (and ``False`` if domain is skipped
+or login failed).
+
 
 Usage with Splash
 -----------------

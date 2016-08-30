@@ -77,6 +77,7 @@ def test_skip(settings):
         yield crawler.crawl(url=s.root_url)
     spider = crawler.spider
     assert set(spider.visited_urls) == {'/', '/login'}
+    assert all(not r.meta['autologin_active'] for r in spider.responses)
 
 
 AL_SETTINGS = {
@@ -100,7 +101,8 @@ def test_login(settings, extra_settings=None):
     assert set(spider.visited_urls) == {'/', '/hidden'}
     response = spider.responses[0]
     assert urlsplit(response.url).path.rstrip('/') == ''
-    assert response.meta['autologin_response']['status'] == 'ok'
+    assert response.meta['autologin_active']
+    assert response.meta['autologin_response']['status'] == 'solved'
 
 
 @inlineCallbacks
@@ -117,6 +119,7 @@ def test_login_error(settings, extra_settings=None):
     assert set(spider.visited_urls) == {'/', '/login'}
     response = spider.responses[0]
     assert urlsplit(response.url).path.rstrip('/') == ''
+    assert not response.meta['autologin_active']
     assert response.meta['autologin_response']['status'] == 'error'
 
 

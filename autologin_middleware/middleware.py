@@ -20,7 +20,10 @@ class AutologinMiddleware:
     Autologin middleware uses autologin to make all requests while being
     logged in. It uses autologin to get cookies, detects logouts and tries
     to avoid them in the future. A single authorization domain for the spider
-    is assumed. Middleware also puts "autologin_active" into request.meta,
+    is assumed.
+    Autologin response is available in response.meta['autologin_response'],
+    if we made requests to autologin while processing this request.
+    Middleware also puts 'autologin_active' into response.meta,
     which is True only if we are logged in (and False if domain is skipped
     or login failed).
     """
@@ -110,6 +113,7 @@ class AutologinMiddleware:
             response = yield self.crawler.engine.download(
                 login_request, spider)
             response_data = json.loads(response.text)
+            request.meta['autologin_response'] = response_data
             status = response_data['status']
             if self._force_skip:
                 status = 'skipped'
