@@ -109,6 +109,23 @@ but avoiding logout links can be beneficial for two reasons:
   out continuously (for example, ``/logout?sid=UNIQUE_ID``).
 
 
+API
+---
+
+There is no special API: autologin middleware just ensures that all requests are
+made while being logged in. As mentioned in the "Configuration" section above,
+you can override some settings on the per-request basis in ``reqeuest.meta``.
+
+Autologin response is available in ``response.meta['autologin_response']``,
+if we made requests to autologin while processing this request.
+You might want to use the ``"status"`` field of the autologin response
+to do some bookkeeping.
+
+Middleware also always puts ``"autologin_active"`` into ``response.meta``,
+which is ``True`` only if we are logged in (and ``False`` if domain is skipped
+or login failed).
+
+
 Usage with Splash
 -----------------
 
