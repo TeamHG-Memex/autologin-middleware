@@ -37,6 +37,7 @@ class TestSpider(scrapy.Spider):
         self.link_extractor = LinkExtractor()
         self.collected_items = []
         self.visited_urls = []
+        self.responses = []
         super(TestSpider, self).__init__()
 
     def start_requests(self):
@@ -44,6 +45,7 @@ class TestSpider(scrapy.Spider):
             yield self.make_request(url)
 
     def parse(self, response):
+        self.responses.append(response)
         p = urlsplit(response.url)
         self.visited_urls.append(
             urlunsplit(['', '', p.path, p.query, p.fragment]) or '/')
@@ -96,6 +98,26 @@ def test_login(settings, extra_settings=None):
     spider = crawler.spider
     assert len(spider.visited_urls) == 2
     assert set(spider.visited_urls) == {'/', '/hidden'}
+    response = spider.responses[0]
+    assert urlsplit(response.url).path.rstrip('/') == ''
+    assert response.meta['autologin_response']['status'] == 'ok'
+
+
+@inlineCallbacks
+def test_login_error(settings, extra_settings=None):
+    """ Trying to login with wrong credentials
+    """
+    al_settings = dict(AL_SETTINGS)
+    al_settings['AUTOLOGIN_PASSWORD'] = 'wrong'
+    crawler = make_crawler(settings, **al_settings)
+    with MockServer(Login) as s:
+        yield crawler.crawl(url=s.root_url)
+    spider = crawler.spider
+    assert len(spider.visited_urls) == 2
+    assert set(spider.visited_urls) == {'/', '/login'}
+    response = spider.responses[0]
+    assert urlsplit(response.url).path.rstrip('/') == ''
+    assert response.meta['autologin_response']['status'] == 'error'
 
 
 class PassMetaSpider(TestSpider):
