@@ -3,6 +3,13 @@ Changes
 
 .. contents::
 
+0.1.4 (2016-08-31)
+------------------
+
+* Provide response from the autologin as
+  ``request.mete['autologin_response']``
+
+
 0.1.3 (2016-06-06)
 ------------------
 
