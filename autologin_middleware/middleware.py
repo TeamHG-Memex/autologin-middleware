@@ -49,6 +49,7 @@ class AutologinMiddleware:
         self.max_logout_count = s.getint('AUTOLOGIN_MAX_LOGOUT_COUNT', 4)
         auth_cookies = s.get('AUTOLOGIN_COOKIES')
         self.skipped = False
+        self.stats = crawler.stats
         if auth_cookies:
             cookies = SimpleCookie()
             cookies.load(auth_cookies)
@@ -72,6 +73,7 @@ class AutologinMiddleware:
         if '_autologin' in request.meta or request.meta.get('skip_autologin'):
             returnValue(None)
         yield self._ensure_login(request, spider)
+        self.stats.set_value('autologin/logged_in', self.logged_in)
         if self.skipped:
             request.meta['autologin_active'] = False
             returnValue(None)
