@@ -3,6 +3,13 @@ Changes
 
 .. contents::
 
+0.1.5 (2016-09-06)
+------------------
+
+* Add ``autologin/logged_in`` to scrapy stats
+  that shows autologin status
+
+
 0.1.4 (2016-08-31)
 ------------------
 
