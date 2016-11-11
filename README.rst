@@ -125,6 +125,9 @@ Middleware also always puts ``"autologin_active"`` into ``response.meta``,
 which is ``True`` only if we are logged in (and ``False`` if domain is skipped
 or login failed).
 
+Additionally, you set ``skip_autologin`` key in ``request.meta`` to ``True``
+in order to completely disable middleware for this request.
+
 
 Usage with Splash
 -----------------
