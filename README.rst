@@ -173,7 +173,7 @@ Development
 You need to start ``autologin-http-api`` (from
 `autologin <https://github.com/TeamHG-Memex/autologin>`_),
 and `splash <http://splash.readthedocs.org>`_ (the easiest option is to run
-``docker run -p 8050:8050 scrapinghub/splash``).
+``docker run -p 8050:8050 --net=host scrapinghub/splash``).
 
 Run tests with tox::
 
