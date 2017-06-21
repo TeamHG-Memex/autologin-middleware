@@ -9,6 +9,7 @@ from scrapy.downloadermiddlewares.cookies import CookiesMiddleware
 from scrapy.exceptions import IgnoreRequest, NotConfigured
 from scrapy.http.cookies import CookieJar
 from scrapy.utils.reqser import request_to_dict, request_from_dict
+import tldextract
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 
@@ -48,18 +49,21 @@ class AutologinMiddleware(object):
         self._force_skip = s.getbool('_AUTOLOGIN_FORCE_SKIP')
         self._n_pend = s.getint('_AUTOLOGIN_N_PEND')
 
-        self._login_df = None
-        self._skipped = None
+        self._login_df = PerDomainState()
+        self._skipped = PerDomainState()
+        self._auth_cookies = PerDomainState()
+        self._logged_in = PerDomainState()
         auth_cookies = s.get('AUTOLOGIN_COOKIES')
         if auth_cookies:
+            auth_cookies_domain = s.get('AUTOLOGIN_COOKIES_DOMAIN')
+            if not auth_cookies_domain:
+                raise ValueError('Please specify AUTOLOGIN_COOKIES_DOMAIN in '
+                                 'addition to AUTOLOGIN_COOKIES')
             cookies = SimpleCookie()
             cookies.load(auth_cookies)
-            self._auth_cookies = [
+            self._auth_cookies[auth_cookies_domain] = [
                 {'name': m.key, 'value': m.value} for m in cookies.values()]
-            self._logged_in = True
-        else:
-            self._auth_cookies = None
-            self._logged_in = False
+            self._logged_in[auth_cookies_domain] = True
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -74,11 +78,12 @@ class AutologinMiddleware(object):
         if '_autologin' in request.meta or request.meta.get('skip_autologin'):
             returnValue(None)
         yield self._ensure_login(request, spider)
-        self.stats.set_value('autologin/logged_in', self._logged_in)
-        if self._skipped:
+        # FIXME - how do we handle it? count domains?
+        # self.stats.set_value('autologin/logged_in', self._logged_in)
+        if self._skipped[request]:
             request.meta['autologin_active'] = False
             returnValue(None)
-        elif self._logged_in:
+        elif self._logged_in[request]:
             request.meta['autologin_active'] = True
             logout_url = request.meta.get(
                 'autologin_logout_url', self.logout_url)
@@ -97,21 +102,22 @@ class AutologinMiddleware(object):
                 autologin_meta['request'] = req_copy
             # TODO - it should be possible to put auth cookies into the
             # cookiejar in process_response (but also check non-splash)
-            if self._auth_cookies:
-                request.cookies = self._auth_cookies
+            if self._auth_cookies[request]:
+                request.cookies = self._auth_cookies[request]
                 autologin_meta['cookie_dict'] = {
-                    c['name']: c['value'] for c in self._auth_cookies}
+                    c['name']: c['value'] for c in self._auth_cookies[request]}
 
     @inlineCallbacks
     def _ensure_login(self, request, spider):
-        if not (self._skipped or self._logged_in):
-            self._login_df = self._login_df or self._login(request, spider)
-            yield self._login_df
-            self._login_df = None
+        if not (self._skipped[request] or self._logged_in[request]):
+            self._login_df[request] = (
+                self._login_df[request] or self._login(request, spider))
+            yield self._login_df[request]
+            self._login_df[request] = None
 
     @inlineCallbacks
     def _login(self, request, spider):
-        while not (self._skipped or self._logged_in):
+        while not (self._skipped[request] or self._logged_in[request]):
             login_request = self._login_request(request)
             response = yield self.crawler.engine.download(
                 login_request, spider)
@@ -127,8 +133,8 @@ class AutologinMiddleware(object):
             if status == 'pending':
                 continue
             elif status in {'skipped', 'error'}:
-                self._auth_cookies = None
-                self._skipped = True
+                self._auth_cookies[request] = None
+                self._skipped[request] = True
                 if status == 'error':
                     logger.error(
                         "Can't login; crawl will continue without auth.")
@@ -137,12 +143,12 @@ class AutologinMiddleware(object):
                 if cookies:
                     cookies = _cookies_to_har(cookies)
                     logger.debug('Got cookies after login %s', cookies)
-                    self._auth_cookies = cookies
-                    self._logged_in = True
+                    self._auth_cookies[request] = cookies
+                    self._logged_in[request] = True
                 else:
                     logger.error('No cookies after login')
-                    self._auth_cookies = None
-                    self._skipped = True
+                    self._auth_cookies[request] = None
+                    self._skipped[request] = True
 
     def _login_request(self, request):
         logger.debug('Attempting login at %s', request.url)
@@ -186,13 +192,13 @@ class AutologinMiddleware(object):
             retryreq.dont_filter = True
             logger.debug(
                 'Logout at %s: %s', retryreq.url, _response_cookies(response))
-            if self._logged_in:
+            if self._logged_in[request]:
                 # We could have already done relogin after initial logout
                 if any(autologin_meta['cookie_dict'].get(c['name']) !=
-                        c['value'] for c in self._auth_cookies):
+                        c['value'] for c in self._auth_cookies[request]):
                     logger.debug('Request was stale, will retry %s', retryreq)
                 else:
-                    self._logged_in = False
+                    self._logged_in[request] = False
                     # It's better to re-login straight away
                     yield self._ensure_login(retryreq, spider)
                     logout_count = retryreq.meta['autologin_logout_count'] = (
@@ -212,12 +218,34 @@ class AutologinMiddleware(object):
         if not self.check_logout:
             return False
         response_cookies = _response_cookies(response)
-        if self._auth_cookies and response_cookies is not None:
-            auth_keys = {c['name'] for c in self._auth_cookies if c['value']}
+        if self._auth_cookies[response] and response_cookies is not None:
+            auth_keys = {c['name'] for c in self._auth_cookies[response] if c['value']}
             response_keys = {
                 name for name, value in response_cookies.items() if value}
             return bool(auth_keys - response_keys)
         return False
+
+
+class PerDomainState(object):
+    def __init__(self):
+        self.state = {}
+
+    def __getitem__(self, key):
+        return self.state.get(self._get_key(key), None)
+
+    def __setitem__(self, key, value):
+        self.state[self._get_key(key)] = value
+
+    def _get_key(self, request):
+        if hasattr(request, 'url'):
+            url = request.url
+        else:
+            url = request
+        return _get_domain(url)
+
+
+def _get_domain(url):
+    return tldextract.extract(url).registered_domain.lower()
 
 
 def _response_cookies(response):

@@ -19,6 +19,7 @@ setup(
     install_requires=[
         'six',
         'scrapy>=1.1.0',
+        'tldextract',
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
