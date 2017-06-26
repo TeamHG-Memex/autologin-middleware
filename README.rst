@@ -49,21 +49,21 @@ Configuration
 
 2. Cookie support is also required. There are currently several options:
 
-  - scrapy cookie middleware (``COOKIES_ENABLED = True``),
-    but autologin middleware requires access to cookies, so you need to enable
-    a custom cookie middleware::
+   - scrapy cookie middleware (``COOKIES_ENABLED = True``),
+     but autologin middleware requires access to cookies, so you need to enable
+     a custom cookie middleware::
 
-        DOWNLOADER_MIDDLEWARES = {
-            'autologin_middleware.AutologinMiddleware': 605,
-            'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': None,
-            'autologin_middleware.ExposeCookiesMiddleware': 700,
-        }
+         DOWNLOADER_MIDDLEWARES = {
+             'autologin_middleware.AutologinMiddleware': 605,
+             'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': None,
+             'autologin_middleware.ExposeCookiesMiddleware': 700,
+         }
 
-  - `scrapy-splash <https://github.com/scrapy-plugins/scrapy-splash>`_
-    cookie middleware (``scrapy_splash.SplashCookiesMiddleware``)
-  - any other middleware that gets cookies from ``request.cookies`` and
-    sets ``response.cookiejar`` like scrapy-splash middleware,
-    or exposes them in ``response.flags`` like ``ExposeCookiesMiddleware``.
+   - `scrapy-splash <https://github.com/scrapy-plugins/scrapy-splash>`_
+     cookie middleware (``scrapy_splash.SplashCookiesMiddleware``)
+   - any other middleware that gets cookies from ``request.cookies`` and
+     sets ``response.cookiejar`` like scrapy-splash middleware,
+     or exposes them in ``response.flags`` like ``ExposeCookiesMiddleware``.
 
 3. Optional but highly recommended: avoid logouts - see optional settings and
    "Avoiding logouts" section below. The reason why it's important is that
