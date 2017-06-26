@@ -107,9 +107,17 @@ class AutologinMiddleware(object):
                 autologin_meta['cookie_dict'] = {
                     c['name']: c['value'] for c in self._auth_cookies[request]}
 
+    def needs_login(self, request, spider):
+        """ Whether this request needs to be performed while logged in.
+        You can redefine this method in subclasses to customize which domains
+        require login and which do not.
+        """
+        return True
+
     @inlineCallbacks
     def _ensure_login(self, request, spider):
-        if not (self._skipped[request] or self._logged_in[request]):
+        if (self.needs_login(request, spider) and
+                not (self._skipped[request] or self._logged_in[request])):
             self._login_df[request] = (
                 self._login_df[request] or self._login(request, spider))
             yield self._login_df[request]

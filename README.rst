@@ -100,6 +100,15 @@ Autologin middleware passes the following settings to the autologin:
 ``SPLASH_URL``, ``USER_AGENT``, ``HTTP_PROXY``, ``HTTPS_PROXY``, so they
 are used for autologin requests.
 
+``autologin_middleware.AutologinMiddleware`` also allows extension.
+Methods that are encouraged to be overriden are:
+
+ - ``needs_login(self, request, spider)`` - whether this request needs to be
+   performed while logged in.
+   You can redefine this method in subclasses to customize which domains
+   require login and which do not.
+
+
 Avoiding logouts
 ----------------
 
