@@ -210,6 +210,7 @@ class CustomParseSpider(TestSpider):
         return super(CustomParseSpider, self).parse(response)
 
 
+@flaky
 def test_custom_parse(settings):
     return test_login_with_logout(settings, spider_cls=CustomParseSpider)
 
