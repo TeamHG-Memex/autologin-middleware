@@ -126,7 +126,7 @@ class AutologinMiddleware(object):
     @inlineCallbacks
     def _login(self, request, spider):
         while not (self._skipped[request] or self._logged_in[request]):
-            login_request = self._login_request(request)
+            login_request = self.login_request(request, spider)
             response = yield self.crawler.engine.download(
                 login_request, spider)
             response_data = json.loads(response.text)
@@ -158,7 +158,7 @@ class AutologinMiddleware(object):
                     self._auth_cookies[request] = None
                     self._skipped[request] = True
 
-    def _login_request(self, request):
+    def login_request(self, request, spider):
         logger.info('Attempting login at {}'.format(request.url))
         autologin_endpoint = urljoin(self.autologin_url, '/login-cookies')
         meta = request.meta
