@@ -88,7 +88,7 @@ class AutologinMiddleware(object):
             logout_url = request.meta.get(
                 'autologin_logout_url', self.logout_url)
             if logout_url and logout_url in request.url:
-                logger.debug('Ignoring logout request %s', request.url)
+                logger.info('Ignoring logout request {}'.format(request.url))
                 raise IgnoreRequest
             # Save original request to be able to retry it in case of logout
             req_copy = request.replace(meta=deepcopy(request.meta))
@@ -137,7 +137,7 @@ class AutologinMiddleware(object):
             elif self._n_pend:
                 self._n_pend -= 1
                 status = 'pending'
-            logger.debug('Got login response with status "%s"', status)
+            logger.info('Got login response with status "{}"'.format(status))
             if status == 'pending':
                 continue
             elif status in {'skipped', 'error'}:
@@ -150,7 +150,7 @@ class AutologinMiddleware(object):
                 cookies = response_data.get('cookies')
                 if cookies:
                     cookies = _cookies_to_har(cookies)
-                    logger.debug('Got cookies after login %s', cookies)
+                    logger.info('Got cookies after login {}'.format(cookies))
                     self._auth_cookies[request] = cookies
                     self._logged_in[request] = True
                 else:
@@ -159,7 +159,7 @@ class AutologinMiddleware(object):
                     self._skipped[request] = True
 
     def _login_request(self, request):
-        logger.debug('Attempting login at %s', request.url)
+        logger.info('Attempting login at {}'.format(request.url))
         autologin_endpoint = urljoin(self.autologin_url, '/login-cookies')
         meta = request.meta
         login_url = meta.get('autologin_login_url', self.login_url)
@@ -198,13 +198,14 @@ class AutologinMiddleware(object):
             else:
                 retryreq = autologin_meta['request'].copy()
             retryreq.dont_filter = True
-            logger.debug(
-                'Logout at %s: %s', retryreq.url, _response_cookies(response))
+            logger.info('Logout at {}: {}'
+                        .format(retryreq.url, _response_cookies(response)))
             if self._logged_in[request]:
                 # We could have already done relogin after initial logout
                 if any(autologin_meta['cookie_dict'].get(c['name']) !=
                         c['value'] for c in self._auth_cookies[request]):
-                    logger.debug('Request was stale, will retry %s', retryreq)
+                    logger.info('Request was stale, will retry {}'
+                                .format(retryreq))
                 else:
                     self._logged_in[request] = False
                     # It's better to re-login straight away
@@ -212,13 +213,13 @@ class AutologinMiddleware(object):
                     logout_count = retryreq.meta['autologin_logout_count'] = (
                         retryreq.meta.get('autologin_logout_count', 0) + 1)
                     if logout_count >= self.max_logout_count:
-                        logger.debug('Max logouts exceeded, will not retry %s',
-                                     retryreq)
+                        logger.info('Max logouts exceeded, will not retry {}'
+                                    .format(retryreq))
                         raise IgnoreRequest
                     else:
-                        logger.debug(
-                            'Request caused log out (%d), still retrying %s',
-                            logout_count, retryreq)
+                        logger.info(
+                            'Request caused log out ({}), still retrying {}'
+                            .format(logout_count, retryreq))
             returnValue(retryreq)
         returnValue(response)
 
