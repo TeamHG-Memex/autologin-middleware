@@ -184,7 +184,8 @@ def test_autologin_request():
     crawler = make_crawler(
         base_settings(), SPLASH_URL='http://192.168.99.100:8050')
     mw = AutologinMiddleware('http://127.0.0.1:8089', crawler)
-    al_request = mw._login_request(scrapy.Request('http://example.com'))
+    al_request = mw.login_request(scrapy.Request('http://example.com'),
+                                  crawler.spider)
     data = json.loads(al_request.body.decode('utf-8'))
     assert al_request.dont_filter
     assert al_request.meta['proxy'] is None
@@ -192,7 +193,8 @@ def test_autologin_request():
     assert data['settings']['USER_AGENT'] == crawler.settings.get('USER_AGENT')
     assert data['settings'].get('SPLASH_URL') is None
 
-    al_request = mw._login_request(SplashRequest('http://example.com'))
+    al_request = mw.login_request(SplashRequest('http://example.com'),
+                                  crawler.spider)
     data = json.loads(al_request.body.decode('utf-8'))
     assert data['url'] == 'http://example.com'
     assert data['settings']['SPLASH_URL'] == crawler.settings.get('SPLASH_URL')
