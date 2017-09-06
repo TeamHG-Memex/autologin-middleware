@@ -127,7 +127,8 @@ class AutologinMiddleware(object):
     def _login(self, request, spider):
         while not (self._skipped[request] or self._logged_in[request]):
             login_request = self.login_request(request, spider)
-            logger.info('Attempting login at {}'.format(request.url))
+            logger.info('Attempting login at {} via {}'
+                        .format(request.url, login_request.url))
             response = yield self.crawler.engine.download(
                 login_request, spider)
             response_data = json.loads(response.text)
